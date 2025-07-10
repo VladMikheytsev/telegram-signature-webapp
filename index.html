@@ -19,24 +19,35 @@
       height: 100vh;
       touch-action: none;
     }
-    #btn {
+    .btn-group {
       position: absolute;
       bottom: 20px;
       left: 50%;
       transform: translateX(-50%);
+      display: flex;
+      gap: 10px;
+      z-index: 10;
+    }
+    button {
       padding: 10px 20px;
-      font-size: 18px;
+      font-size: 16px;
       border: none;
       background: #1976d2;
       color: white;
       border-radius: 8px;
-      z-index: 10;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    }
+    button:active {
+      background: #125aa1;
     }
   </style>
 </head>
 <body>
   <canvas id="canvas"></canvas>
-  <button id="btn" onclick="submitSignature()">Отправить</button>
+  <div class="btn-group">
+    <button onclick="clearCanvas()">Очистить</button>
+    <button onclick="submitSignature()">Отправить</button>
+  </div>
 
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script>
@@ -44,29 +55,68 @@
     const ctx = canvas.getContext('2d');
     resizeCanvas();
 
-    let drawing = false;
+    window.addEventListener('resize', resizeCanvas);
 
     function resizeCanvas() {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
     }
 
-    window.addEventListener('resize', resizeCanvas);
+    let drawing = false;
+    let points = [];
 
-    canvas.addEventListener('pointerdown', e => {
+    canvas.addEventListener('pointerdown', (e) => {
       drawing = true;
-      ctx.beginPath();
-      draw(e);
+      points.push(getCoords(e));
+    });
+
+    canvas.addEventListener('pointermove', (e) => {
+      if (!drawing) return;
+      points.push(getCoords(e));
+      drawSmoothLine();
     });
 
     canvas.addEventListener('pointerup', () => {
       drawing = false;
-      ctx.beginPath();
+      points = [];
     });
 
-    canvas.addEventListener('pointermove', draw);
+    function getCoords(e) {
+      const rect = canvas.getBoundingClientRect();
+      return {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+      };
+    }
 
-    function draw(e) {
-      if (!drawing) return;
+    function drawSmoothLine() {
+      if (points.length < 3) return;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.lineWidth = 3;
-      ctx.lineCap
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = '#000';
+      ctx.beginPath();
+      ctx.moveTo(points[0].x, points[0].y);
+
+      for (let i = 1; i < points.length - 2; i++) {
+        const xc = (points[i].x + points[i + 1].x) / 2;
+        const yc = (points[i].y + points[i + 1].y) / 2;
+        ctx.quadraticCurveTo(points[i].x, points[i].y, xc, yc);
+      }
+
+      ctx.stroke();
+    }
+
+    function clearCanvas() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      points = [];
+    }
+
+    function submitSignature() {
+      const dataURL = canvas.toDataURL("image/png");
+      Telegram.WebApp.sendData(JSON.stringify({ signature: dataURL }));
+    }
+  </script>
+</body>
+</html>
