@@ -1,49 +1,72 @@
-
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Подпись</title>
   <style>
-    canvas { border: 1px solid #000; touch-action: none; }
-    button { margin-top: 10px; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overflow: hidden;
+      background: #fff;
+      touch-action: none;
+    }
+    canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+      touch-action: none;
+    }
+    #btn {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 10px 20px;
+      font-size: 18px;
+      border: none;
+      background: #1976d2;
+      color: white;
+      border-radius: 8px;
+      z-index: 10;
+    }
   </style>
 </head>
 <body>
-  <h3>Нарисуйте вашу подпись</h3>
-  <canvas id="canvas" width="300" height="150"></canvas><br>
-  <button onclick="submitSignature()">Отправить</button>
+  <canvas id="canvas"></canvas>
+  <button id="btn" onclick="submitSignature()">Отправить</button>
 
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script>
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
+    resizeCanvas();
+
     let drawing = false;
 
-    canvas.addEventListener('pointerdown', () => drawing = true);
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+
+    canvas.addEventListener('pointerdown', e => {
+      drawing = true;
+      ctx.beginPath();
+      draw(e);
+    });
+
     canvas.addEventListener('pointerup', () => {
       drawing = false;
       ctx.beginPath();
     });
+
     canvas.addEventListener('pointermove', draw);
 
     function draw(e) {
       if (!drawing) return;
-      const rect = canvas.getBoundingClientRect();
-      ctx.lineWidth = 2;
-      ctx.lineCap = 'round';
-      ctx.strokeStyle = '#000';
-      ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
-    }
-
-    function submitSignature() {
-      const dataURL = canvas.toDataURL("image/png");
-      const result = { signature: dataURL };
-      Telegram.WebApp.sendData(JSON.stringify(result));
-    }
-  </script>
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
-</body>
-</html>
+      ctx.lineWidth = 3;
+      ctx.lineCap
