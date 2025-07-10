@@ -1,52 +1,76 @@
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Подпись</title>
+  <title>Перемещение ТМЦ</title>
   <style>
-    html, body {
+    body, html {
       margin: 0;
       padding: 0;
       height: 100%;
-      overflow: hidden;
-      background: #fff;
-      touch-action: none;
+      font-family: sans-serif;
+      background: #f9f9f9;
+    }
+    .container {
+      padding: 15px;
+    }
+    input, button {
+      width: 100%;
+      margin: 10px 0;
+      padding: 10px;
+      font-size: 16px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    }
+    label {
+      font-weight: bold;
     }
     canvas {
-      display: block;
-      width: 100vw;
-      height: 100vh;
+      border: 1px solid #ccc;
+      width: 100%;
+      height: 150px;
+      border-radius: 6px;
+      background: white;
       touch-action: none;
     }
     .btn-group {
-      position: absolute;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
       display: flex;
+      justify-content: space-between;
       gap: 10px;
-      z-index: 10;
     }
-    button {
-      padding: 10px 20px;
-      font-size: 16px;
-      border: none;
+    #submit-btn {
       background: #1976d2;
       color: white;
-      border-radius: 8px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      font-weight: bold;
     }
-    button:active {
-      background: #125aa1;
+    #clear-btn {
+      background: #ccc;
     }
   </style>
 </head>
 <body>
-  <canvas id="canvas"></canvas>
-  <div class="btn-group">
-    <button onclick="clearCanvas()">Очистить</button>
-    <button onclick="submitSignature()">Отправить</button>
+  <div class="container">
+    <h2>Форма перемещения</h2>
+    <label>ТМЦ</label>
+    <input type="text" id="item" placeholder="Введите наименование">
+
+    <label>Ед.</label>
+    <input type="text" id="unit" placeholder="Введите единицу измерения">
+
+    <label>Кол-во</label>
+    <input type="number" id="qty" placeholder="Введите количество">
+
+    <label>Подписант</label>
+    <input type="text" id="signer" placeholder="Введите имя">
+
+    <label>Подпись</label>
+    <canvas id="canvas"></canvas>
+    <div class="btn-group">
+      <button id="clear-btn" onclick="clearCanvas()">Очистить</button>
+      <button id="submit-btn" onclick="submitData()">Отправить</button>
+    </div>
   </div>
 
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -55,67 +79,57 @@
     const ctx = canvas.getContext('2d');
     resizeCanvas();
 
+    function resizeCanvas() {
+      canvas.width = canvas.offsetWidth;
+      canvas.height = 150;
+    }
+
     window.addEventListener('resize', resizeCanvas);
 
-    function resizeCanvas() {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-    }
-
     let drawing = false;
-    let points = [];
-
-    canvas.addEventListener('pointerdown', (e) => {
+    canvas.addEventListener('pointerdown', e => {
       drawing = true;
-      points.push(getCoords(e));
+      ctx.beginPath();
+      draw(e);
     });
-
-    canvas.addEventListener('pointermove', (e) => {
-      if (!drawing) return;
-      points.push(getCoords(e));
-      drawSmoothLine();
-    });
-
     canvas.addEventListener('pointerup', () => {
       drawing = false;
-      points = [];
+      ctx.beginPath();
     });
+    canvas.addEventListener('pointermove', draw);
 
-    function getCoords(e) {
+    function draw(e) {
+      if (!drawing) return;
       const rect = canvas.getBoundingClientRect();
-      return {
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top
-      };
-    }
-
-    function drawSmoothLine() {
-      if (points.length < 3) return;
-
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.lineWidth = 3;
+      ctx.lineWidth = 2;
       ctx.lineCap = 'round';
       ctx.strokeStyle = '#000';
-      ctx.beginPath();
-      ctx.moveTo(points[0].x, points[0].y);
-
-      for (let i = 1; i < points.length - 2; i++) {
-        const xc = (points[i].x + points[i + 1].x) / 2;
-        const yc = (points[i].y + points[i + 1].y) / 2;
-        ctx.quadraticCurveTo(points[i].x, points[i].y, xc, yc);
-      }
-
+      ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
       ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
     }
 
     function clearCanvas() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      points = [];
     }
 
-    function submitSignature() {
-      const dataURL = canvas.toDataURL("image/png");
-      Telegram.WebApp.sendData(JSON.stringify({ signature: dataURL }));
+    function submitData() {
+      const item = document.getElementById("item").value;
+      const unit = document.getElementById("unit").value;
+      const qty = document.getElementById("qty").value;
+      const signer = document.getElementById("signer").value;
+      const signature = canvas.toDataURL("image/png");
+
+      const payload = {
+        item,
+        unit,
+        qty,
+        signer,
+        signature
+      };
+
+      Telegram.WebApp.sendData(JSON.stringify(payload));
     }
   </script>
 </body>
