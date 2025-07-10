@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -79,6 +78,11 @@
     const ctx = canvas.getContext('2d');
     resizeCanvas();
 
+    // Initialize Telegram WebApp
+    let tg = window.Telegram.WebApp;
+    tg.ready();
+    console.log("Telegram WebApp initialized:", tg.initData);
+
     function resizeCanvas() {
       canvas.width = canvas.offsetWidth;
       canvas.height = 150;
@@ -115,11 +119,19 @@
     }
 
     function submitData() {
+      console.log("Submit button clicked");
       const item = document.getElementById("item").value;
       const unit = document.getElementById("unit").value;
       const qty = document.getElementById("qty").value;
       const signer = document.getElementById("signer").value;
-      const signature = canvas.toDataURL("image/png");
+
+      // Compress signature
+      const tempCanvas = document.createElement("canvas");
+      tempCanvas.width = canvas.width / 2;
+      tempCanvas.height = canvas.height / 2;
+      const tempCtx = tempCanvas.getContext("2d");
+      tempCtx.drawImage(canvas, 0, 0, tempCanvas.width, tempCanvas.height);
+      const signature = tempCanvas.toDataURL("image/jpeg", 0.7);
 
       const payload = {
         item,
@@ -129,7 +141,14 @@
         signature
       };
 
-      Telegram.WebApp.sendData(JSON.stringify(payload));
+      console.log("Sending payload:", payload);
+      try {
+        Telegram.WebApp.sendData(JSON.stringify(payload));
+        console.log("Data sent to Telegram");
+      } catch (error) {
+        console.error("Error sending data:", error);
+        alert("Ошибка при отправке данных: " + error.message);
+      }
     }
   </script>
 </body>
