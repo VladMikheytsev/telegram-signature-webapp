@@ -47,6 +47,11 @@
     #clear-btn {
       background: #ccc;
     }
+    .error {
+      color: red;
+      font-size: 14px;
+      margin-top: 5px;
+    }
   </style>
 </head>
 <body>
@@ -54,26 +59,33 @@
     <h2>Форма перемещения</h2>
     <label>ТМЦ</label>
     <input type="text" id="item" placeholder="Введите наименование">
+    <div id="item-error" class="error"></div>
 
     <label>Ед.</label>
     <input type="text" id="unit" placeholder="Введите единицу измерения">
+    <div id="unit-error" class="error"></div>
 
     <label>Кол-во</label>
     <input type="number" id="qty" placeholder="Введите количество">
+    <div id="qty-error" class="error"></div>
 
     <label>Подписант</label>
     <input type="text" id="signer" placeholder="Введите имя">
+    <div id="signer-error" class="error"></div>
 
     <label>Подпись</label>
     <canvas id="canvas"></canvas>
+    <div id="canvas-error" class="error"></div>
+
     <div class="btn-group">
-      <button id="clear-btn" onclick="clearCanvas()">Очистить</button>
-      <button id="submit-btn" onclick="submitData()">Отправить</button>
+      <button id="clear-btn">Очистить</button>
+      <button id="submit-btn">Отправить</button>
     </div>
   </div>
 
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script>
+    // Initialize canvas
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
     resizeCanvas();
@@ -83,6 +95,7 @@
     tg.ready();
     console.log("Telegram WebApp initialized:", tg.initData);
 
+    // Resize canvas to fit container
     function resizeCanvas() {
       canvas.width = canvas.offsetWidth;
       canvas.height = 150;
@@ -90,6 +103,7 @@
 
     window.addEventListener('resize', resizeCanvas);
 
+    // Drawing functionality
     let drawing = false;
     canvas.addEventListener('pointerdown', e => {
       drawing = true;
@@ -116,23 +130,72 @@
 
     function clearCanvas() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+      document.getElementById('canvas-error').textContent = '';
     }
 
-    function submitData() {
+    // Clear button event listener
+    document.getElementById('clear-btn').addEventListener('click', clearCanvas);
+
+    // Submit button event listener
+    document.getElementById('submit-btn').addEventListener('click', () => {
       console.log("Submit button clicked");
-      const item = document.getElementById("item").value;
-      const unit = document.getElementById("unit").value;
-      const qty = document.getElementById("qty").value;
-      const signer = document.getElementById("signer").value;
+      submitData();
+    });
+
+    function submitData() {
+      // Clear previous error messages
+      document.getElementById('item-error').textContent = '';
+      document.getElementById('unit-error').textContent = '';
+      document.getElementById('qty-error').textContent = '';
+      document.getElementById('signer-error').textContent = '';
+      document.getElementById('canvas-error').textContent = '';
+
+      // Get form values
+      const item = document.getElementById('item').value.trim();
+      const unit = document.getElementById('unit').value.trim();
+      const qty = document.getElementById('qty').value.trim();
+      const signer = document.getElementById('signer').value.trim();
+
+      // Validate inputs
+      let isValid = true;
+      if (!item) {
+        document.getElementById('item-error').textContent = 'Пожалуйста, введите наименование';
+        isValid = false;
+      }
+      if (!unit) {
+        document.getElementById('unit-error').textContent = 'Пожалуйста, введите единицу измерения';
+        isValid = false;
+      }
+      if (!qty || qty <= 0) {
+        document.getElementById('qty-error').textContent = 'Пожалуйста, введите корректное количество';
+        isValid = false;
+      }
+      if (!signer) {
+        document.getElementById('signer-error').textContent = 'Пожалуйста, введите имя подписанта';
+        isValid = false;
+      }
+      // Optional: Check if canvas has content
+      const canvasData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+      const isCanvasEmpty = !Array.from(canvasData).some(pixel => pixel !== 0);
+      if (isCanvasEmpty) {
+        document.getElementById('canvas-error').textContent = 'Пожалуйста, добавьте подпись';
+        isValid = false;
+      }
+
+      if (!isValid) {
+        console.log("Validation failed");
+        return;
+      }
 
       // Compress signature
-      const tempCanvas = document.createElement("canvas");
-      tempCanvas.width = canvas.width / 2;
-      tempCanvas.height = canvas.height / 2;
-      const tempCtx = tempCanvas.getContext("2d");
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = canvas.width / 4; // Reduce resolution
+      tempCanvas.height = canvas.height / 4;
+      const tempCtx = tempCanvas.getContext('2d');
       tempCtx.drawImage(canvas, 0, 0, tempCanvas.width, tempCanvas.height);
-      const signature = tempCanvas.toDataURL("image/jpeg", 0.7);
+      const signature = tempCanvas.toDataURL('image/jpeg', 0.5); // JPEG, 50% quality
 
+      // Prepare payload
       const payload = {
         item,
         unit,
@@ -141,13 +204,15 @@
         signature
       };
 
-      console.log("Sending payload:", payload);
+      console.log('Sending payload:', payload);
+
       try {
         Telegram.WebApp.sendData(JSON.stringify(payload));
-        console.log("Data sent to Telegram");
+        console.log('Data sent to Telegram');
+        alert('Данные отправлены!');
       } catch (error) {
-        console.error("Error sending data:", error);
-        alert("Ошибка при отправке данных: " + error.message);
+        console.error('Error sending data:', error);
+        alert('Ошибка при отправке данных: ' + error.message);
       }
     }
   </script>
