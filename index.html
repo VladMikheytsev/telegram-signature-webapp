@@ -1,61 +1,42 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html>
 <head>
   <meta charset="UTF-8">
+  <script src="https://unpkg.com/html5-qrcode"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Сканер штрихкода</title>
-  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 0;
-      text-align: center;
-      background-color: #f7f7f7;
-    }
-
-    #reader {
-      width: 100%;
-      max-width: 400px;
-      margin: 40px auto;
-    }
-
-    h2 {
-      color: #333;
-      margin-top: 20px;
-    }
-  </style>
+  <title>Сканер</title>
 </head>
 <body>
-  <h2>Сканируйте штрихкод</h2>
-  <div id="reader"></div>
+  <div id="reader" style="width: 100%; max-width: 400px; margin: auto;"></div>
 
   <script>
     const tg = window.Telegram.WebApp || null;
     if (tg) tg.expand();
 
-    function onScanSuccess(decodedText, decodedResult) {
-      if (tg && tg.sendData) {
-        tg.sendData(decodedText); // отправка данных в Telegram
+    Html5Qrcode.getCameras().then(cameras => {
+      if (cameras.length) {
+        const cameraId = cameras[0].id;
+        const qrCodeScanner = new Html5Qrcode("reader");
+        qrCodeScanner.start(
+          cameraId,
+          {
+            fps: 10,
+            qrbox: 250
+          },
+          (decodedText) => {
+            if (tg) tg.sendData(decodedText);
+            qrCodeScanner.stop();
+          },
+          (error) => {
+            console.warn("Сканирование ошибка:", error);
+          }
+        );
       } else {
-        alert("Найдено: " + decodedText); // fallback
+        alert("Камеры не найдены.");
       }
-      scanner.clear(); // остановить сканирование после успешного считывания
-    }
-
-    function onScanFailure(error) {
-      // необязательный вывод ошибок (можно закомментировать)
-      // console.warn(`Ошибка сканирования: ${error}`);
-    }
-
-    const scanner = new Html5QrcodeScanner("reader", {
-      fps: 10,
-      qrbox: { width: 250, height: 250 },
-      supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA],
-      rememberLastUsedCamera: true
+    }).catch(err => {
+      alert("Ошибка доступа к камере: " + err);
     });
-
-    scanner.render(onScanSuccess, onScanFailure);
   </script>
 </body>
 </html>
