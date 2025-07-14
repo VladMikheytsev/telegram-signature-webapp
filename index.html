@@ -1,42 +1,39 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <script src="https://unpkg.com/html5-qrcode"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Сканер</title>
+  <title>Сканер штрихкода</title>
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <style>
+    body { font-family: Arial; background: #fff; text-align: center; margin: 0; padding: 0; }
+    h2 { margin-top: 20px; }
+    #reader { width: 100%; max-width: 400px; margin: 20px auto; }
+  </style>
 </head>
 <body>
-  <div id="reader" style="width: 100%; max-width: 400px; margin: auto;"></div>
-
+  <h2>Сканируйте штрихкод</h2>
+  <div id="reader"></div>
   <script>
-    const tg = window.Telegram.WebApp || null;
-    if (tg) tg.expand();
-
+    const tg = window.Telegram?.WebApp;
+    tg?.expand();
     Html5Qrcode.getCameras().then(cameras => {
-      if (cameras.length) {
-        const cameraId = cameras[0].id;
-        const qrCodeScanner = new Html5Qrcode("reader");
-        qrCodeScanner.start(
-          cameraId,
-          {
-            fps: 10,
-            qrbox: 250
-          },
-          (decodedText) => {
-            if (tg) tg.sendData(decodedText);
-            qrCodeScanner.stop();
-          },
-          (error) => {
-            console.warn("Сканирование ошибка:", error);
-          }
-        );
-      } else {
-        alert("Камеры не найдены.");
+      if (!cameras.length) {
+        alert("Камера не найдена");
+        return;
       }
-    }).catch(err => {
-      alert("Ошибка доступа к камере: " + err);
-    });
+      const camId = cameras[0].id;
+      const qr = new Html5Qrcode("reader");
+      qr.start(
+        camId,
+        { fps: 10, qrbox: 250 },
+        decodedText => {
+          tg?.sendData(decodedText) ?? alert("Сканировано: " + decodedText);
+          qr.stop();
+        },
+        err => console.warn("Scan error", err)
+      ).catch(err => alert("Ошибка камеры: " + err));
+    }).catch(err => alert("Ошибка доступа к камере: " + err));
   </script>
 </body>
 </html>
