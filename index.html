@@ -1,35 +1,61 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Сканер штрихкодов</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Сканер штрихкода</title>
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      text-align: center;
+      background-color: #f7f7f7;
+    }
+
+    #reader {
+      width: 100%;
+      max-width: 400px;
+      margin: 40px auto;
+    }
+
+    h2 {
+      color: #333;
+      margin-top: 20px;
+    }
+  </style>
 </head>
 <body>
-  <div id="reader" style="width: 100%; max-width: 400px; margin: auto;"></div>
+  <h2>Сканируйте штрихкод</h2>
+  <div id="reader"></div>
 
   <script>
-    const tg = window.Telegram.WebApp;
-    tg.expand();
+    const tg = window.Telegram.WebApp || null;
+    if (tg) tg.expand();
 
     function onScanSuccess(decodedText, decodedResult) {
-      tg.sendData(decodedText); // Отправка текста в Telegram-бота
-      html5QrcodeScanner.clear(); // Остановить сканирование
+      if (tg && tg.sendData) {
+        tg.sendData(decodedText); // отправка данных в Telegram
+      } else {
+        alert("Найдено: " + decodedText); // fallback
+      }
+      scanner.clear(); // остановить сканирование после успешного считывания
     }
 
     function onScanFailure(error) {
-      // Ошибки сканирования (можно игнорировать или логировать)
+      // необязательный вывод ошибок (можно закомментировать)
+      // console.warn(`Ошибка сканирования: ${error}`);
     }
 
-    const html5QrcodeScanner = new Html5QrcodeScanner("reader", {
+    const scanner = new Html5QrcodeScanner("reader", {
       fps: 10,
       qrbox: { width: 250, height: 250 },
-      rememberLastUsedCamera: true,
-      supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA]
+      supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA],
+      rememberLastUsedCamera: true
     });
 
-    html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+    scanner.render(onScanSuccess, onScanFailure);
   </script>
 </body>
 </html>
