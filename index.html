@@ -1,29 +1,35 @@
-
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Сканер штрихкодов</title>
-  <script src="https://unpkg.com/html5-qrcode"></script>
-  <style>
-    body { font-family: sans-serif; text-align: center; margin: 0; padding: 0; }
-    #reader { width: 100vw; height: 100vh; }
-  </style>
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 </head>
 <body>
-  <div id="reader"></div>
+  <div id="reader" style="width: 100%; max-width: 400px; margin: auto;"></div>
+
   <script>
     const tg = window.Telegram.WebApp;
     tg.expand();
 
     function onScanSuccess(decodedText, decodedResult) {
-      tg.sendData(decodedText);  // Отправка в Telegram-бота
+      tg.sendData(decodedText); // Отправка текста в Telegram-бота
+      html5QrcodeScanner.clear(); // Остановить сканирование
     }
 
-    new Html5QrcodeScanner("reader", {
+    function onScanFailure(error) {
+      // Ошибки сканирования (можно игнорировать или логировать)
+    }
+
+    const html5QrcodeScanner = new Html5QrcodeScanner("reader", {
       fps: 10,
-      qrbox: { width: 250, height: 250 }
-    }).render(onScanSuccess);
+      qrbox: { width: 250, height: 250 },
+      rememberLastUsedCamera: true,
+      supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA]
+    });
+
+    html5QrcodeScanner.render(onScanSuccess, onScanFailure);
   </script>
 </body>
 </html>
