@@ -5,7 +5,7 @@
   <title>Сканер штрихкода</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <script src="https://unpkg.com/html5-qrcode"></script>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   <style>
     body {
       margin: 0;
@@ -43,7 +43,7 @@
   <script>
     function log(message, level = "info") {
       if (location.hostname === "localhost" || location.hostname.includes("vercel.app")) {
-        console[level](message);
+        console[level](`[2025-07-13 19:47 PDT] ${message}`);
       }
     }
 
@@ -58,8 +58,8 @@
       throw new Error("Telegram WebApp not available");
     }
 
-    log("Telegram WebApp initialized", "info");
-    log("initData: " + JSON.stringify(tg.initDataUnsafe), "info");
+    log("Telegram WebApp initialized successfully", "info");
+    log("initData: " + JSON.stringify(tg.initDataUnsafe || {}), "info");
     tg.expand();
 
     const lang = tg.initDataUnsafe?.user?.language_code || "ru";
@@ -85,7 +85,7 @@
 
     const html5QrCode = new Html5Qrcode("reader");
     const config = { fps: 10, qrbox: { width: 250, height: 250 } };
-    
+
     window.addEventListener("beforeunload", () => {
       html5QrCode.stop().catch(err => log("Ошибка при остановке сканера: " + err, "error"));
     });
@@ -98,11 +98,15 @@
         document.getElementById("loading").style.display = "none";
         log("Decoded barcode: " + decodedText, "info");
 
-
         const decodedNumber = decodedText.match(/^001-(\d{9})$/);
         if (decodedNumber && tg.sendData) {
-          tg.sendData(decodedNumber[1]); // Sends 123456789
+          const barcode = decodedNumber[1]; // 9-digit number, e.g., 123456789
+          tg.sendData(barcode);
+          log(`Sent barcode to bot: ${barcode}`, "info");
           tg.close();
+        } else {
+          log("Invalid barcode format: " + decodedText, "error");
+          alert(i18n[lang].error);
         }
       },
       (errorMessage) => {
@@ -113,8 +117,8 @@
       const errorMsg = err.message.includes("Permission denied")
         ? i18n[lang].permissionError
         : i18n[lang].cameraError + err;
-      alert(errorMsg);
       log("Camera start error: " + err, "error");
+      alert(errorMsg);
     });
   </script>
 </body>
