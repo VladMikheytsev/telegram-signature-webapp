@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <title>Сканер штрихкода</title>
+  <title>Сканер штрихкода (GS1-128)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
@@ -36,89 +36,56 @@
   </style>
 </head>
 <body>
-  <h2 aria-live="polite">Сканируйте штрихкод</h2>
+  <h2 aria-live="polite">Сканируйте GS1-128</h2>
   <div id="reader" role="region" aria-label="Область сканирования штрихкода"></div>
   <div id="loading">Идёт запуск камеры...</div>
 
   <script>
     function log(message, level = "info") {
       if (location.hostname === "localhost" || location.hostname.includes("vercel.app")) {
-        console[level](`[2025-07-13 19:47 PDT] ${message}`);
+        console[level](`[log] ${message}`);
       }
     }
 
     const tg = window.Telegram?.WebApp;
     if (!tg) {
-      log("Telegram WebApp not available", "error");
       document.body.innerHTML = `
-        <p class="error">Это приложение работает только в Telegram.</p>
-        <p>Откройте бота и нажмите кнопку "Сканировать штрихкод".</p>
-        <a href="https://t.me/YourBotName" target="_blank">Открыть бота</a>
+        <p class="error">Откройте это приложение через Telegram.</p>
+        <p>Нажмите кнопку "Сканировать штрихкод" в боте.</p>
       `;
       throw new Error("Telegram WebApp not available");
     }
 
-    log("Telegram WebApp initialized successfully", "info");
-    log("initData: " + JSON.stringify(tg.initDataUnsafe || {}), "info");
     tg.expand();
-
-    const lang = tg.initDataUnsafe?.user?.language_code || "ru";
-    const i18n = {
-      ru: {
-        title: "Сканируйте штрихкод",
-        error: "Ошибка: штрихкод должен начинаться с '001-' и содержать 9 цифр.",
-        cameraError: "Не удалось запустить сканер: ",
-        permissionError: "Разрешите доступ к камере в настройках устройства.",
-        loading: "Идёт запуск камеры..."
-      },
-      en: {
-        title: "Scan Barcode",
-        error: "Error: Barcode must start with '001-' and contain 9 digits.",
-        cameraError: "Failed to start scanner: ",
-        permissionError: "Please allow camera access in device settings.",
-        loading: "Starting camera..."
-      }
-    };
-
-    document.querySelector("h2").textContent = i18n[lang].title;
-    document.getElementById("loading").textContent = i18n[lang].loading;
-
     const html5QrCode = new Html5Qrcode("reader");
     const config = { fps: 10, qrbox: { width: 250, height: 250 } };
 
-    window.addEventListener("beforeunload", () => {
-      html5QrCode.stop().catch(err => log("Ошибка при остановке сканера: " + err, "error"));
-    });
+    let scanned = false;
 
-    document.getElementById("loading").style.display = "block";
     html5QrCode.start(
       { facingMode: "environment" },
       config,
       (decodedText, decodedResult) => {
-        document.getElementById("loading").style.display = "none";
-        log("Decoded barcode: " + decodedText, "info");
+        if (scanned) return;
+        scanned = true;
 
-        const decodedNumber = decodedText.match(/^001-(\d{9})$/);
-        if (decodedNumber && tg.sendData) {
-          const barcode = decodedNumber[1]; // 9-digit number, e.g., 123456789
-          tg.sendData(barcode);
-          log(`Sent barcode to bot: ${barcode}`, "info");
-          tg.close();
-        } else {
-          log("Invalid barcode format: " + decodedText, "error");
-          alert(i18n[lang].error);
-        }
+        log("Сканировано: " + decodedText);
+        tg.sendData(decodedText);
+        setTimeout(() => tg.close(), 500); // подождать, чтобы отправка прошла
       },
       (errorMessage) => {
         log("Ошибка сканирования: " + errorMessage, "warn");
       }
     ).catch(err => {
-      document.getElementById("loading").style.display = "none";
-      const errorMsg = err.message.includes("Permission denied")
-        ? i18n[lang].permissionError
-        : i18n[lang].cameraError + err;
-      log("Camera start error: " + err, "error");
-      alert(errorMsg);
+      const msg = err.message.includes("Permission denied")
+        ? "Разрешите доступ к камере в настройках устройства."
+        : "Ошибка запуска камеры: " + err;
+      alert(msg);
+      log(msg, "error");
+    });
+
+    window.addEventListener("beforeunload", () => {
+      html5QrCode.stop().catch(err => log("Ошибка остановки камеры: " + err));
     });
   </script>
 </body>
