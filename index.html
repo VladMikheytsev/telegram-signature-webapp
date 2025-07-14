@@ -44,28 +44,13 @@
   <script>
     function log(message, level = "info") {
       if (location.hostname === "localhost" || location.hostname.includes("vercel.app")) {
-        console[level](`[2025-07-13 20:50 PDT] ${message}`);
+        console[level](`[2025-07-13 20:59 PDT] ${message}`);
       }
     }
 
-    // GS1-128 parser
-    function parseGS1_128(barcode) {
-      try {
-        const aiRegex = /\((\d{2,4})\)([^()]+)/g;
-        let match;
-        const data = {};
-        while ((match = aiRegex.exec(barcode)) !== null) {
-          const ai = match[1];
-          const value = match[2].trim();
-          if (ai === "01") data.gtin = value; // GTIN (14 digits)
-          else if (ai === "10") data.batch = value; // Batch number
-          else if (ai === "17") data.expiry = value; // Expiration date (YYMMDD)
-        }
-        return data;
-      } catch (e) {
-        log("GS1-128 parsing error: " + e, "error");
-        return null;
-      }
+    function validateBarcode(barcode) {
+      const regex = /^\d{8}$/;
+      return regex.test(barcode) ? barcode : null;
     }
 
     const tg = window.Telegram?.WebApp;
@@ -87,14 +72,14 @@
     const i18n = {
       ru: {
         title: "Сканируйте штрихкод",
-        error: "Ошибка: штрихкод должен быть в формате GS1-128 и содержать GTIN (01).",
+        error: "Ошибка: штрихкод должен состоять из 8 цифр.",
         cameraError: "Не удалось запустить сканер: ",
         permissionError: "Разрешите доступ к камере в настройках устройства.",
         loading: "Идёт запуск камеры..."
       },
       en: {
         title: "Scan Barcode",
-        error: "Error: Barcode must be in GS1-128 format and contain GTIN (01).",
+        error: "Error: Barcode must consist of 8 digits.",
         cameraError: "Failed to start scanner: ",
         permissionError: "Please allow camera access in device settings.",
         loading: "Starting camera..."
@@ -105,7 +90,7 @@
     document.getElementById("loading").textContent = i18n[lang].loading;
 
     const html5QrCode = new Html5Qrcode("reader");
-    const config = { fps: 10, qrbox: { width: 250, height: 250 }, formatsToSupport: ["CODE_128"] };
+    const config = { fps: 10, qrbox: { width: 250, height: 250 }, formatsToSupport: ["EAN_8", "CODE_128"] };
 
     window.addEventListener("beforeunload", () => {
       html5QrCode.stop().catch(err => log("Ошибка при остановке сканера: " + err, "error"));
@@ -119,13 +104,13 @@
         document.getElementById("loading").style.display = "none";
         log("Decoded barcode: " + decodedText, "info");
 
-        const gs1Data = parseGS1_128(decodedText);
-        if (gs1Data && gs1Data.gtin && tg.sendData) {
-          tg.sendData(gs1Data.gtin); // Send GTIN (e.g., 01234567890128)
-          log(`Sent GTIN to bot: ${gs1Data.gtin}`, "info");
+        const barcode = validateBarcode(decodedText);
+        if (barcode && tg.sendData) {
+          tg.sendData(barcode); // Send 8-digit barcode (e.g., 12345678)
+          log(`Sent barcode to bot: ${barcode}`, "info");
           tg.close();
         } else {
-          log("Invalid GS1-128 barcode: " + decodedText, "error");
+          log("Invalid barcode format: " + decodedText, "error");
           alert(i18n[lang].error);
         }
       },
