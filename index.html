@@ -1,21 +1,28 @@
+
 <!DOCTYPE html>
 <html>
 <head>
+  <meta charset="UTF-8" />
+  <title>Сканер штрихкодов</title>
   <script src="https://unpkg.com/html5-qrcode"></script>
+  <style>
+    body { font-family: sans-serif; text-align: center; margin: 0; padding: 0; }
+    #reader { width: 100vw; height: 100vh; }
+  </style>
 </head>
 <body>
-  <div id="reader" style="width: 100%"></div>
+  <div id="reader"></div>
   <script>
     const tg = window.Telegram.WebApp;
     tg.expand();
 
     function onScanSuccess(decodedText, decodedResult) {
-      tg.sendData(decodedText);  // Отправляем в бота
+      tg.sendData(decodedText);  // Отправка в Telegram-бота
     }
 
     new Html5QrcodeScanner("reader", {
       fps: 10,
-      qrbox: 250
+      qrbox: { width: 250, height: 250 }
     }).render(onScanSuccess);
   </script>
 </body>
