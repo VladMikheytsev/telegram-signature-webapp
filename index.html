@@ -2,8 +2,9 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <title>Сканер штрихкода (GS1-128)</title>
+  <title>Сканер штрихкода</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="telegram:webapp" content="true">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   <style>
@@ -36,56 +37,108 @@
   </style>
 </head>
 <body>
-  <h2 aria-live="polite">Сканируйте GS1-128</h2>
+  <h2 aria-live="polite">Сканируйте штрихкод</h2>
   <div id="reader" role="region" aria-label="Область сканирования штрихкода"></div>
   <div id="loading">Идёт запуск камеры...</div>
 
   <script>
     function log(message, level = "info") {
       if (location.hostname === "localhost" || location.hostname.includes("vercel.app")) {
-        console[level](`[log] ${message}`);
+        console[level](`[2025-07-13 20:50 PDT] ${message}`);
+      }
+    }
+
+    // GS1-128 parser
+    function parseGS1_128(barcode) {
+      try {
+        const aiRegex = /\((\d{2,4})\)([^()]+)/g;
+        let match;
+        const data = {};
+        while ((match = aiRegex.exec(barcode)) !== null) {
+          const ai = match[1];
+          const value = match[2].trim();
+          if (ai === "01") data.gtin = value; // GTIN (14 digits)
+          else if (ai === "10") data.batch = value; // Batch number
+          else if (ai === "17") data.expiry = value; // Expiration date (YYMMDD)
+        }
+        return data;
+      } catch (e) {
+        log("GS1-128 parsing error: " + e, "error");
+        return null;
       }
     }
 
     const tg = window.Telegram?.WebApp;
     if (!tg) {
+      log("Telegram WebApp not available", "error");
       document.body.innerHTML = `
-        <p class="error">Откройте это приложение через Telegram.</p>
-        <p>Нажмите кнопку "Сканировать штрихкод" в боте.</p>
+        <p class="error">Это приложение работает только в Telegram.</p>
+        <p>Откройте бота и нажмите кнопку "Сканировать штрихкод".</p>
+        <a href="https://t.me/YourBotName" target="_blank">Открыть бота</a>
       `;
       throw new Error("Telegram WebApp not available");
     }
 
+    log("Telegram WebApp initialized successfully", "info");
+    log("initData: " + JSON.stringify(tg.initDataUnsafe || {}), "info");
     tg.expand();
+
+    const lang = tg.initDataUnsafe?.user?.language_code || "ru";
+    const i18n = {
+      ru: {
+        title: "Сканируйте штрихкод",
+        error: "Ошибка: штрихкод должен быть в формате GS1-128 и содержать GTIN (01).",
+        cameraError: "Не удалось запустить сканер: ",
+        permissionError: "Разрешите доступ к камере в настройках устройства.",
+        loading: "Идёт запуск камеры..."
+      },
+      en: {
+        title: "Scan Barcode",
+        error: "Error: Barcode must be in GS1-128 format and contain GTIN (01).",
+        cameraError: "Failed to start scanner: ",
+        permissionError: "Please allow camera access in device settings.",
+        loading: "Starting camera..."
+      }
+    };
+
+    document.querySelector("h2").textContent = i18n[lang].title;
+    document.getElementById("loading").textContent = i18n[lang].loading;
+
     const html5QrCode = new Html5Qrcode("reader");
-    const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+    const config = { fps: 10, qrbox: { width: 250, height: 250 }, formatsToSupport: ["CODE_128"] };
 
-    let scanned = false;
+    window.addEventListener("beforeunload", () => {
+      html5QrCode.stop().catch(err => log("Ошибка при остановке сканера: " + err, "error"));
+    });
 
+    document.getElementById("loading").style.display = "block";
     html5QrCode.start(
       { facingMode: "environment" },
       config,
       (decodedText, decodedResult) => {
-        if (scanned) return;
-        scanned = true;
+        document.getElementById("loading").style.display = "none";
+        log("Decoded barcode: " + decodedText, "info");
 
-        log("Сканировано: " + decodedText);
-        tg.sendData(decodedText);
-        setTimeout(() => tg.close(), 500); // подождать, чтобы отправка прошла
+        const gs1Data = parseGS1_128(decodedText);
+        if (gs1Data && gs1Data.gtin && tg.sendData) {
+          tg.sendData(gs1Data.gtin); // Send GTIN (e.g., 01234567890128)
+          log(`Sent GTIN to bot: ${gs1Data.gtin}`, "info");
+          tg.close();
+        } else {
+          log("Invalid GS1-128 barcode: " + decodedText, "error");
+          alert(i18n[lang].error);
+        }
       },
       (errorMessage) => {
         log("Ошибка сканирования: " + errorMessage, "warn");
       }
     ).catch(err => {
-      const msg = err.message.includes("Permission denied")
-        ? "Разрешите доступ к камере в настройках устройства."
-        : "Ошибка запуска камеры: " + err;
-      alert(msg);
-      log(msg, "error");
-    });
-
-    window.addEventListener("beforeunload", () => {
-      html5QrCode.stop().catch(err => log("Ошибка остановки камеры: " + err));
+      document.getElementById("loading").style.display = "none";
+      const errorMsg = err.message.includes("Permission denied")
+        ? i18n[lang].permissionError
+        : i18n[lang].cameraError + err;
+      log("Camera start error: " + err, "error");
+      alert(errorMsg);
     });
   </script>
 </body>
