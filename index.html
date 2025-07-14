@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <title>Сканер штрихкода</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <script src="https://unpkg.com/html5-qrcode"></script>
   <style>
     body {
       margin: 0;
@@ -15,6 +15,7 @@
     }
     h2 {
       margin-top: 20px;
+      font-size: 24px;
     }
     #reader {
       width: 100%;
@@ -22,44 +23,83 @@
       margin: auto;
       padding: 10px;
     }
+    #loading {
+      font-size: 16px;
+      color: #333;
+      margin: 20px;
+    }
+    .error {
+      color: red;
+      margin: 10px;
+    }
   </style>
 </head>
 <body>
-  <h2>Сканируйте штрихкод</h2>
-  <div id="reader"></div>
+  <h2 aria-live="polite">Сканируйте штрихкод</h2>
+  <div id="reader" role="region" aria-label="Область сканирования штрихкода"></div>
+  <div id="loading">Идёт запуск камеры...</div>
 
   <script>
-    const tg = window.Telegram?.WebApp;
-    console.log("Telegram WebApp:", tg); // Отладка
-    if (tg) tg.expand();
-
-    const html5QrCode = new Html5Qrcode("reader");
-
-    const config = {
-      fps: 10,
-      qrbox: { width: 250, height: 250 }
+    const i18n = {
+      ru: {
+        title: "Сканируйте штрихкод",
+        error: "Ошибка: штрихкод должен начинаться с '001-' и содержать 9 цифр.",
+        cameraError: "Не удалось запустить сканер: ",
+        permissionError: "Разрешите доступ к камере в настройках устройства.",
+        loading: "Идёт запуск камеры..."
+      },
+      en: {
+        title: "Scan Barcode",
+        error: "Error: Barcode must start with '001-' and contain 9 digits.",
+        cameraError: "Failed to start scanner: ",
+        permissionError: "Please allow camera access in device settings.",
+        loading: "Starting camera..."
+      }
     };
 
+    const tg = window.Telegram?.WebApp;
+    if (!tg) {
+      alert("Ошибка: Это приложение должно быть открыто в Telegram.");
+      document.body.innerHTML = '<p class="error">Откройте приложение в Telegram.</p>';
+      throw new Error("Telegram WebApp not available");
+    }
+    tg.expand();
+
+    const lang = tg.initDataUnsafe?.user?.language_code || "ru";
+    document.querySelector("h2").textContent = i18n[lang].title;
+    document.getElementById("loading").textContent = i18n[lang].loading;
+
+    const html5QrCode = new Html5Qrcode("reader");
+    const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+
+    window.addEventListener("beforeunload", () => {
+      html5QrCode.stop().catch(err => console.error("Ошибка при остановке сканера:", err));
+    });
+
+    document.getElementById("loading").style.display = "block";
     html5QrCode.start(
       { facingMode: "environment" },
       config,
       (decodedText, decodedResult) => {
-        const decodedNumber = decodedText.match(/^\d+$/) ? decodedText : null;
-        if (decodedNumber && tg && tg.sendData) {
-          console.log("Отправляем число:", decodedNumber); // Отладка
-          tg.sendData(decodedNumber);
-          tg.close(); // Закрыть Mini App
+        document.getElementById("loading").style.display = "none";
+        const decodedNumber = decodedText.match(/^001-(\d{9})$/);
+        if (decodedNumber && tg.sendData) {
+          tg.sendData(decodedNumber[1]);
+          tg.close();
         } else {
-          alert("Ошибка: штрихкод должен быть числом или Telegram API недоступен.");
+          alert(i18n[lang].error);
         }
-        html5QrCode.stop();
+        html5QrCode.stop().catch(err => console.error("Ошибка при остановке:", err));
       },
       (errorMessage) => {
-        console.warn("Ошибка сканирования: ", errorMessage);
+        console.warn("Ошибка сканирования:", errorMessage);
       }
     ).catch(err => {
-      console.error("Ошибка запуска камеры: ", err);
-      alert("Не удалось запустить сканер: " + err);
+      document.getElementById("loading").style.display = "none";
+      const errorMsg = err.message.includes("Permission denied")
+        ? i18n[lang].permissionError
+        : i18n[lang].cameraError + err;
+      alert(errorMsg);
     });
   </script>
 </body>
