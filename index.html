@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <title>Сканер штрихкода</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <script src="https://unpkg.com/html5-qrcode"></script>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   <style>
     body {
       margin: 0;
@@ -30,6 +30,7 @@
 
   <script>
     const tg = window.Telegram?.WebApp;
+    console.log("Telegram WebApp:", tg); // Отладка
     if (tg) tg.expand();
 
     const html5QrCode = new Html5Qrcode("reader");
@@ -40,15 +41,16 @@
     };
 
     html5QrCode.start(
-      { facingMode: "environment" }, // 🚀 задняя камера
+      { facingMode: "environment" },
       config,
       (decodedText, decodedResult) => {
-        if (tg && tg.sendData) {
-          tg.sendData(decodedText);
+        const decodedNumber = decodedText.match(/^\d+$/) ? decodedText : null;
+        if (decodedNumber && tg && tg.sendData) {
+          console.log("Отправляем число:", decodedNumber); // Отладка
+          tg.sendData(decodedNumber);
           tg.close(); // Закрыть Mini App
-        }
         } else {
-          alert("Сканировано: " + decodedText);
+          alert("Ошибка: штрихкод должен быть числом или Telegram API недоступен.");
         }
         html5QrCode.stop();
       },
@@ -61,3 +63,4 @@
     });
   </script>
 </body>
+</html>
