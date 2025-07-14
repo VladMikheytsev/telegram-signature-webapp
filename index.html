@@ -2,38 +2,60 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Сканер штрихкода</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script src="https://unpkg.com/html5-qrcode"></script>
   <style>
-    body { font-family: Arial; background: #fff; text-align: center; margin: 0; padding: 0; }
-    h2 { margin-top: 20px; }
-    #reader { width: 100%; max-width: 400px; margin: 20px auto; }
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: sans-serif;
+      background: #f4f4f4;
+      text-align: center;
+    }
+    h2 {
+      margin-top: 20px;
+    }
+    #reader {
+      width: 100%;
+      max-width: 400px;
+      margin: auto;
+      padding: 10px;
+    }
   </style>
 </head>
 <body>
   <h2>Сканируйте штрихкод</h2>
   <div id="reader"></div>
+
   <script>
     const tg = window.Telegram?.WebApp;
-    tg?.expand();
-    Html5Qrcode.getCameras().then(cameras => {
-      if (!cameras.length) {
-        alert("Камера не найдена");
-        return;
+    if (tg) tg.expand();
+
+    const html5QrCode = new Html5Qrcode("reader");
+
+    const config = {
+      fps: 10,
+      qrbox: { width: 250, height: 250 }
+    };
+
+    html5QrCode.start(
+      { facingMode: "environment" }, // 🚀 задняя камера
+      config,
+      (decodedText, decodedResult) => {
+        if (tg && tg.sendData) {
+          tg.sendData(decodedText);
+        } else {
+          alert("Сканировано: " + decodedText);
+        }
+        html5QrCode.stop();
+      },
+      (errorMessage) => {
+        console.warn("Ошибка сканирования: ", errorMessage);
       }
-      const camId = cameras[0].id;
-      const qr = new Html5Qrcode("reader");
-      qr.start(
-        camId,
-        { fps: 10, qrbox: 250 },
-        decodedText => {
-          tg?.sendData(decodedText) ?? alert("Сканировано: " + decodedText);
-          qr.stop();
-        },
-        err => console.warn("Scan error", err)
-      ).catch(err => alert("Ошибка камеры: " + err));
-    }).catch(err => alert("Ошибка доступа к камере: " + err));
+    ).catch(err => {
+      console.error("Ошибка запуска камеры: ", err);
+      alert("Не удалось запустить сканер: " + err);
+    });
   </script>
 </body>
-</html>
