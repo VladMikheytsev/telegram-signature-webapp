@@ -85,7 +85,7 @@
 
     const html5QrCode = new Html5Qrcode("reader");
     const config = { fps: 10, qrbox: { width: 250, height: 250 } };
-
+    
     window.addEventListener("beforeunload", () => {
       html5QrCode.stop().catch(err => log("Ошибка при остановке сканера: " + err, "error"));
     });
@@ -97,16 +97,13 @@
       (decodedText, decodedResult) => {
         document.getElementById("loading").style.display = "none";
         log("Decoded barcode: " + decodedText, "info");
+
+
         const decodedNumber = decodedText.match(/^001-(\d{9})$/);
         if (decodedNumber && tg.sendData) {
-          tg.sendData(decodedNumber[1]);
-          log("Sent barcode to bot: " + decodedNumber[1], "info");
+          tg.sendData(decodedNumber[1]); // Sends 123456789
           tg.close();
-        } else {
-          alert(i18n[lang].error);
-          log("Invalid barcode format: " + decodedText, "warn");
         }
-        html5QrCode.stop().catch(err => log("Ошибка при остановке: " + err, "error"));
       },
       (errorMessage) => {
         log("Ошибка сканирования: " + errorMessage, "warn");
