@@ -45,6 +45,8 @@
       (decodedText, decodedResult) => {
         if (tg && tg.sendData) {
           tg.sendData(decodedText);
+          tg.close(); // Закрыть Mini App
+        }
         } else {
           alert("Сканировано: " + decodedText);
         }
