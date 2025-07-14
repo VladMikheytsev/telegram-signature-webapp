@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <title>Сканер штрихкода</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <style>
     body {
@@ -40,6 +41,28 @@
   <div id="loading">Идёт запуск камеры...</div>
 
   <script>
+    function log(message, level = "info") {
+      if (location.hostname === "localhost" || location.hostname.includes("vercel.app")) {
+        console[level](message);
+      }
+    }
+
+    const tg = window.Telegram?.WebApp;
+    if (!tg) {
+      log("Telegram WebApp not available", "error");
+      document.body.innerHTML = `
+        <p class="error">Это приложение работает только в Telegram.</p>
+        <p>Откройте бота и нажмите кнопку "Сканировать штрихкод".</p>
+        <a href="https://t.me/YourBotName" target="_blank">Открыть бота</a>
+      `;
+      throw new Error("Telegram WebApp not available");
+    }
+
+    log("Telegram WebApp initialized", "info");
+    log("initData: " + JSON.stringify(tg.initDataUnsafe), "info");
+    tg.expand();
+
+    const lang = tg.initDataUnsafe?.user?.language_code || "ru";
     const i18n = {
       ru: {
         title: "Сканируйте штрихкод",
@@ -57,15 +80,6 @@
       }
     };
 
-    const tg = window.Telegram?.WebApp;
-    if (!tg) {
-      alert("Ошибка: Это приложение должно быть открыто в Telegram.");
-      document.body.innerHTML = '<p class="error">Откройте приложение в Telegram.</p>';
-      throw new Error("Telegram WebApp not available");
-    }
-    tg.expand();
-
-    const lang = tg.initDataUnsafe?.user?.language_code || "ru";
     document.querySelector("h2").textContent = i18n[lang].title;
     document.getElementById("loading").textContent = i18n[lang].loading;
 
@@ -73,7 +87,7 @@
     const config = { fps: 10, qrbox: { width: 250, height: 250 } };
 
     window.addEventListener("beforeunload", () => {
-      html5QrCode.stop().catch(err => console.error("Ошибка при остановке сканера:", err));
+      html5QrCode.stop().catch(err => log("Ошибка при остановке сканера: " + err, "error"));
     });
 
     document.getElementById("loading").style.display = "block";
@@ -82,17 +96,20 @@
       config,
       (decodedText, decodedResult) => {
         document.getElementById("loading").style.display = "none";
+        log("Decoded barcode: " + decodedText, "info");
         const decodedNumber = decodedText.match(/^001-(\d{9})$/);
         if (decodedNumber && tg.sendData) {
           tg.sendData(decodedNumber[1]);
+          log("Sent barcode to bot: " + decodedNumber[1], "info");
           tg.close();
         } else {
           alert(i18n[lang].error);
+          log("Invalid barcode format: " + decodedText, "warn");
         }
-        html5QrCode.stop().catch(err => console.error("Ошибка при остановке:", err));
+        html5QrCode.stop().catch(err => log("Ошибка при остановке: " + err, "error"));
       },
       (errorMessage) => {
-        console.warn("Ошибка сканирования:", errorMessage);
+        log("Ошибка сканирования: " + errorMessage, "warn");
       }
     ).catch(err => {
       document.getElementById("loading").style.display = "none";
@@ -100,6 +117,7 @@
         ? i18n[lang].permissionError
         : i18n[lang].cameraError + err;
       alert(errorMsg);
+      log("Camera start error: " + err, "error");
     });
   </script>
 </body>
