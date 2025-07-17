@@ -136,8 +136,12 @@
     const API_BASE_URL = window.location.origin;
 
     function log(message, level = "info") {
-      if (location.hostname === "localhost" || location.hostname.includes("vercel.app") || location.hostname.includes("ngrok.io")) {
+      // Улучшенная функция логгирования для большей устойчивости
+      if (console && typeof console[level] === 'function') {
         console[level](`[${new Date().toLocaleString()}] ${message}`);
+      } else {
+        // Fallback to console.log if specific method is not available
+        console.log(`[${new Date().toLocaleString()}] [${level.toUpperCase()}] ${message}`);
       }
     }
 
@@ -233,7 +237,7 @@
     const quantityInputSection = document.getElementById("quantity-input-section");
     const productNameDisplay = document.getElementById("productNameDisplay");
     const quantityInput = document.getElementById("quantityInput");
-    const saveQuantityButton = document.getElementById("saveQuantityButton"); // ИСПРАВЛЕНА ОПЕЧАТКА
+    const saveQuantityButton = document.getElementById("saveQuantityButton"); 
 
     const warehouseInputSection = document.getElementById("warehouse-input-section");
     const quantityDisplay = document.getElementById("quantityDisplay");
@@ -274,9 +278,8 @@
         hideMessage();
         showMessage(i18n[lang].loadingCamera, "info"); 
         try {
-            const response = await fetch(`${API_BASE_URL}/add-barcode`, {
+            const response = await fetch(`${API_BASE_URL}/api/add-barcode`, { // Изменено: добавлен /api/
                 method: 'POST',
-                // Убраны лишние запятые, соблюден порядок JSLint
                 headers: {
                     'Content-Type': 'application/json'
                 },
@@ -288,7 +291,7 @@
 
             if (data.success) {
                 currentRowIndex = data.rowIndex;
-                showMessage(`${i18n[lang].barcodeScanned} ${scannedText}`, "success"); // Сообщение с отсканированным текстом
+                showMessage(`${i18n[lang].barcodeScanned} ${scannedText}`, "success"); 
                 scannedBarcodeDisplay.textContent = scannedText; 
                 setTimeout(() => {
                     nameInputSection.style.display = 'block';
@@ -317,7 +320,7 @@
         showMessage(i18n[lang].loadingCamera, "info");
 
         try {
-            const response = await fetch(`${API_BASE_URL}/add-name`, {
+            const response = await fetch(`${API_BASE_URL}/api/add-name`, { // Изменено: добавлен /api/
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -359,7 +362,7 @@
         showMessage(i18n[lang].loadingCamera, "info");
 
         try {
-            const response = await fetch(`${API_BASE_URL}/add-quantity`, {
+            const response = await fetch(`${API_BASE_URL}/api/add-quantity`, { // Изменено: добавлен /api/
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -401,7 +404,7 @@
         showMessage(i18n[lang].loadingCamera, "info");
 
         try {
-            const response = await fetch(`${API_BASE_URL}/add-warehouse`, {
+            const response = await fetch(`${API_BASE_URL}/api/add-warehouse`, { // Изменено: добавлен /api/
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
