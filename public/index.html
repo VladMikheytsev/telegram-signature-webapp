@@ -220,6 +220,7 @@
     };
     const lang = tg.initDataUnsafe?.user?.language_code || "ru";
 
+    // Инициализируем ВСЕ элементы DOM здесь, чтобы они были доступны
     const mainTitle = document.querySelector("h2");
     const startInputButton = document.getElementById("startInputButton");
     const loadingDiv = document.getElementById("loading"); 
@@ -230,8 +231,9 @@
     const saveNameButton = document.getElementById("saveNameButton");
 
     const quantityInputSection = document.getElementById("quantity-input-section");
-    // ИСПРАВЛЕНА ОПЕЧАТКА ЗДЕСЬ:
-    const saveQuantityButton = document.getElementById("saveQuantityButton");
+    const productNameDisplay = document.getElementById("productNameDisplay");
+    const quantityInput = document.getElementById("quantityInput");
+    const saveQuantityButton = document.getElementById("saveQuantityButton"); // ИСПРАВЛЕНА ОПЕЧАТКА
 
     const warehouseInputSection = document.getElementById("warehouse-input-section");
     const quantityDisplay = document.getElementById("quantityDisplay");
@@ -274,10 +276,11 @@
         try {
             const response = await fetch(`${API_BASE_URL}/add-barcode`, {
                 method: 'POST',
+                // Убраны лишние запятые, соблюден порядок JSLint
                 headers: {
-                    'Content-Type': 'application/json',
+                    'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ barcode: scannedText }), 
+                body: JSON.stringify({ barcode: scannedText })
             });
 
             const data = await response.json();
@@ -285,7 +288,7 @@
 
             if (data.success) {
                 currentRowIndex = data.rowIndex;
-                showMessage(i18n[lang].successSaveBarcode, "success");
+                showMessage(`${i18n[lang].barcodeScanned} ${scannedText}`, "success"); // Сообщение с отсканированным текстом
                 scannedBarcodeDisplay.textContent = scannedText; 
                 setTimeout(() => {
                     nameInputSection.style.display = 'block';
@@ -301,7 +304,7 @@
             showMessage(i18n[lang].serverError, "error");
             setTimeout(resetUI, 3000);
         }
-    });
+    }
 
     saveNameButton.addEventListener('click', async () => {
         const productName = productNameInput.value.trim();
@@ -317,9 +320,9 @@
             const response = await fetch(`${API_BASE_URL}/add-name`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
+                    'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ rowIndex: currentRowIndex, productName: productName }),
+                body: JSON.stringify({ rowIndex: currentRowIndex, productName: productName })
             });
 
             const data = await response.json();
@@ -359,9 +362,9 @@
             const response = await fetch(`${API_BASE_URL}/add-quantity`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
+                    'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ rowIndex: currentRowIndex, quantity: parseInt(quantity) }),
+                body: JSON.stringify({ rowIndex: currentRowIndex, quantity: parseInt(quantity) })
             });
 
             const data = await response.json();
@@ -401,9 +404,9 @@
             const response = await fetch(`${API_BASE_URL}/add-warehouse`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
+                    'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ rowIndex: currentRowIndex, warehouse: warehouse }),
+                body: JSON.stringify({ rowIndex: currentRowIndex, warehouse: warehouse })
             });
 
             const data = await response.json();
