@@ -21,23 +21,22 @@
       font-size: 24px;
     }
     #reader {
-      /* НОВЫЕ СТИЛИ для принудительного отображения */
-      width: 100% !important; /* Принудительно 100% */
-      max-width: 400px !important; /* Принудительно максимальная ширина */
-      min-height: 300px !important; /* Увеличил для большей уверенности */
-      height: auto !important; /* Пусть высота подстраивается под содержимое */
-
+      /* Стили для гарантированного отображения камеры */
+      width: 100% !important; 
+      max-width: 400px !important; 
+      min-height: 300px !important; 
+      height: auto !important; 
       margin: auto;
       padding: 10px;
-      overflow: hidden; /* Скрываем возможное переполнение, если видео будет больше */
+      overflow: hidden; 
     }
-    /* Дополнительные стили для видеоэлемента, который html5-qrcode вставляет */
+    /* Стили для видеоэлемента, который html5-qrcode вставляет */
     #reader video {
         width: 100% !important;
         height: auto !important;
-        min-height: 300px !important; /* Соответствует min-height родителя */
+        min-height: 300px !important; 
         display: block !important;
-        object-fit: cover; /* Или contain, если нужно вмещать все видео */
+        object-fit: cover; 
     }
 
     #loading {
@@ -304,7 +303,12 @@
         if (!html5QrCode) {
             html5QrCode = new Html5Qrcode("reader");
         }
-        const config = { fps: 10, qrbox: { width: 250, height: 250 }, formatsToSupport: [Html5QrcodeSupportedFormats.EAN_8, Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.QR_CODE] };
+        // Изменение: Увеличена область сканирования (qrbox)
+        const config = { 
+            fps: 10, 
+            qrbox: { width: 300, height: 300 }, // Увеличены размеры qrbox
+            formatsToSupport: [Html5QrcodeSupportedFormats.EAN_8, Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.QR_CODE] 
+        };
 
         try {
             await html5QrCode.start(
@@ -330,7 +334,8 @@
                     }
                 },
                 (errorMessage) => {
-                    // log("Html5Qrcode scanning error: " + errorMessage, "warn");
+                    // Это сообщение появляется, когда коды не найдены, полезно для отладки
+                    log("Html5Qrcode scanning error: " + errorMessage, "warn");
                 }
             );
             loadingDiv.style.display = "none";
