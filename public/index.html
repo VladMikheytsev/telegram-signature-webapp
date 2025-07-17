@@ -21,13 +21,25 @@
       font-size: 24px;
     }
     #reader {
-      width: 100%;
-      max-width: 400px;
+      /* НОВЫЕ СТИЛИ для принудительного отображения */
+      width: 100% !important; /* Принудительно 100% */
+      max-width: 400px !important; /* Принудительно максимальная ширина */
+      min-height: 300px !important; /* Увеличил для большей уверенности */
+      height: auto !important; /* Пусть высота подстраивается под содержимое */
+
       margin: auto;
       padding: 10px;
-      /* НОВОЕ: Устанавливаем минимальную высоту для гарантированного отображения камеры */
-      min-height: 250px; /* Достаточно для большинства QR/штрихкодов */
+      overflow: hidden; /* Скрываем возможное переполнение, если видео будет больше */
     }
+    /* Дополнительные стили для видеоэлемента, который html5-qrcode вставляет */
+    #reader video {
+        width: 100% !important;
+        height: auto !important;
+        min-height: 300px !important; /* Соответствует min-height родителя */
+        display: block !important;
+        object-fit: cover; /* Или contain, если нужно вмещать все видео */
+    }
+
     #loading {
       font-size: 16px;
       color: #333;
@@ -509,7 +521,6 @@
                 log("Button 'Внести данные' clicked!", "info");
                 startInputButton.style.display = 'none';
 
-                // Небольшая задержка перед показом секции сканера
                 setTimeout(() => {
                     scannerSection.style.display = 'block';
                     scannerTitle.textContent = i18n[lang].scanBarcode;
@@ -526,7 +537,7 @@
                     } else {
                         log("Scanner already active, just showing section.", "info");
                     }
-                }, 100); // Задержка 100 мс
+                }, 100); 
             });
         } else {
             log("ERROR: startInputButton not found in DOM!", "error");
