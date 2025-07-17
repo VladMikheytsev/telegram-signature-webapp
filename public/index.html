@@ -137,11 +137,14 @@
 
     function log(message, level = "info") {
       // Улучшенная функция логгирования для большей устойчивости
-      if (console && typeof console[level] === 'function') {
-        console[level](`[${new Date().toLocaleString()}] ${message}`);
+      // Убедимся, что level - это строка, прежде чем вызывать toUpperCase()
+      const effectiveLevel = typeof level === 'string' ? level : 'info'; 
+
+      if (console && typeof console[effectiveLevel] === 'function') {
+        console[effectiveLevel](`[${new Date().toLocaleString()}] ${message}`);
       } else {
         // Fallback to console.log if specific method is not available
-        console.log(`[${new Date().toLocaleString()}] [${level.toUpperCase()}] ${message}`);
+        console.log(`[${new Date().toLocaleString()}] [${effectiveLevel.toUpperCase()}] ${message}`);
       }
     }
 
@@ -278,7 +281,7 @@
         hideMessage();
         showMessage(i18n[lang].loadingCamera, "info"); 
         try {
-            const response = await fetch(`${API_BASE_URL}/api/add-barcode`, { // Изменено: добавлен /api/
+            const response = await fetch(`${API_BASE_URL}/api/add-barcode`, { 
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -320,7 +323,7 @@
         showMessage(i18n[lang].loadingCamera, "info");
 
         try {
-            const response = await fetch(`${API_BASE_URL}/api/add-name`, { // Изменено: добавлен /api/
+            const response = await fetch(`${API_BASE_URL}/api/add-name`, { 
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -362,7 +365,7 @@
         showMessage(i18n[lang].loadingCamera, "info");
 
         try {
-            const response = await fetch(`${API_BASE_URL}/api/add-quantity`, { // Изменено: добавлен /api/
+            const response = await fetch(`${API_BASE_URL}/api/add-quantity`, { 
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -404,7 +407,7 @@
         showMessage(i18n[lang].loadingCamera, "info");
 
         try {
-            const response = await fetch(`${API_BASE_URL}/api/add-warehouse`, { // Изменено: добавлен /api/
+            const response = await fetch(`${API_BASE_URL}/api/add-warehouse`, { 
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
