@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Сканер штрихкода и управление запасами</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="telegram:webapp" content="true">
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: sans-serif;
+      background: #f4f4f4;
+      text-align: center;
+      color: #333;
+    }
+    h2 {
+      margin-top: 20px;
+      font-size: 24px;
+    }
+    #reader {
+      width: 100%;
+      max-width: 400px;
+      margin: auto;
+      padding: 10px;
+    }
+    #loading {
+      font-size: 16px;
+      color: #333;
+      margin: 20px;
+    }
+    .error {
+      color: red;
+      margin: 10px;
+    }
+    #scanner-controls {
+        margin-top: 20px;
+    }
+    #scanner-controls button {
+        padding: 10px 20px;
+        font-size: 16px;
+        cursor: pointer;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 5px;
+    }
+    #product-info {
+        margin-top: 20px;
+        padding: 15px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        background: white;
+        max-width: 400px;
+        margin: 20px auto;
+        text-align: left;
+    }
+    #product-info p {
+        margin: 5px 0;
+    }
+    #product-info label {
+        display: block;
+        margin-top: 10px;
+        margin-bottom: 5px;
+        font-weight: bold;
+    }
+    #product-info input[type="number"] {
+        width: calc(100% - 22px);
+        padding: 10px;
+        margin-bottom: 10px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 16px;
+    }
+    #product-info button {
+        width: 100%;
+        padding: 12px;
+        background-color: #28a745;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        font-size: 18px;
+        cursor: pointer;
+    }
+    #product-info button:hover {
+        background-color: #218838;
+    }
+    .message {
+        margin: 10px;
+        padding: 10px;
+        border-radius: 5px;
+        font-size: 1.1em;
+    }
+    .message.success {
+        background-color: #d4edda;
+        color: #155724;
+    }
+    .message.info {
+        background-color: #d1ecf1;
+        color: #0c5460;
+    }
+    .message.warning {
+        background-color: #fff3cd;
+        color: #856404;
+    }
+    .message.error {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+  </style>
+</head>
+<body>
+  <h2 aria-live="polite">Сканируйте штрихкод</h2>
+  <div id="reader" role="region" aria-label="Область сканирования штрихкода"></div>
+  <div id="loading">Идёт запуск камеры...</div>
+
+  <div id="scanner-controls">
+      <button id="startScanButton" style="display: none;">Начать сканирование</button>
+  </div>
+
+  <div id="product-info" style="display: none;">
+    <p><strong>Отсканированный штрихкод:</strong> <span id="scannedBarcode"></span></p>
+    <p><strong>Наименование:</strong> <span id="productName"></span></p>
+    <p><strong>Текущее количество:</strong> <span id="currentQuantity"></span></p>
+
+    <label for="newQuantityInput">Новое количество:</label>
+    <input type="number" id="newQuantityInput" min="0">
+    <button id="updateQuantityButton">Обновить количество</button>
+  </div>
+
+  <div id="message-display" class="message" style="display: none;"></div>
+
+  <script>
+    const API_BASE_URL = window.location.origin; // Важно: URL вашего бэкенда. Если фронт и бэк на разных доменах/портах, измените.
+
+    function log(message, level = "info") {
+      if (location.hostname === "localhost" || location.hostname.includes("vercel.app") || location.hostname.includes("ngrok.io")) { // Добавил ngrok для удобства тестирования
+        console[level](`[${new Date().toLocaleString()}] ${message}`);
+      }
+    }
+
+    // Для вашего случая, где штрихкод 8 цифр, эта функция подойдет
+    function validateBarcode(barcode) {
+      const regex = /^\d{8}$/; // Убедитесь, что это соответствует вашему формату штрихкодов
+      return regex.test(barcode) ? barcode : null;
+    }
+
+    const tg = window.Telegram?.WebApp;
+    if (!tg) {
+      log("Telegram WebApp not available", "error");
+      document.body.innerHTML = `
+        <p class="error">Это приложение работает только в Telegram.</p>
+        <p>Откройте бота и нажмите кнопку "Сканировать штрихкод".</p>
+        <a href="https://t.me/YourBotName" target="_blank">Открыть бота</a>
+      `;
+      throw new Error("Telegram WebApp not available");
+    }
+
+    log("Telegram WebApp initialized successfully", "info");
+    log("initData: " + JSON.stringify(tg.initDataUnsafe || {}), "info");
+    tg.expand();
+
+    const lang = tg.initDataUnsafe?.user?.language_code || "ru";
+    const i18n = {
+      ru: {
+        title: "Сканируйте штрихкод",
+        errorInvalidBarcode: "Ошибка: штрихкод должен состоять из 8 цифр.",
+        cameraError: "Не удалось запустить сканер: ",
+        permissionError: "Разрешите доступ к камере в настройках устройства.",
+        loading: "Идёт запуск камеры...",
+        scanning: "Сканирование...",
+        barcodeNotFound: "Штрихкод не найден в базе данных.",
+        scanAgain: "Отсканируйте следующий штрихкод",
+        updateSuccess: "Количество успешно обновлено!",
+        updateError: "Ошибка при обновлении количества.",
+        serverError: "Ошибка связи с сервером.",
+        enterNewQuantity: "Введите новое количество.",
+        scanNewBarcode: "Отсканируйте новый штрихкод",
+        startScan: "Начать сканирование"
+      },
+      en: {
+        title: "Scan Barcode",
+        errorInvalidBarcode: "Error: Barcode must consist of 8 digits.",
+        cameraError: "Failed to start scanner: ",
+        permissionError: "Please allow camera access in device settings.",
+        loading: "Starting camera...",
+        scanning: "Scanning...",
+        barcodeNotFound: "Barcode not found in database.",
+        scanAgain: "Scan next barcode",
+        updateSuccess: "Quantity updated successfully!",
+        updateError: "Error updating quantity.",
+        serverError: "Error connecting to server.",
+        enterNewQuantity: "Enter new quantity.",
+        scanNewBarcode: "Scan new barcode",
+        startScan: "Start scanning"
+      }
+    };
+
+    document.querySelector("h2").textContent = i18n[lang].title;
+    document.getElementById("loading").textContent = i18n[lang].loading;
+    document.getElementById("startScanButton").textContent = i18n[lang].startScan;
+
+    const html5QrCode = new Html5Qrcode("reader");
+    // В зависимости от ваших штрихкодов, возможно, потребуется добавить другие форматы
+    const config = { fps: 10, qrbox: { width: 250, height: 250 }, formatsToSupport: ["EAN_8", "EAN_13", "CODE_128"] };
+
+    const loadingDiv = document.getElementById("loading");
+    const readerDiv = document.getElementById("reader");
+    const productInfoDiv = document.getElementById("product-info");
+    const scannedBarcodeSpan = document.getElementById("scannedBarcode");
+    const productNameSpan = document.getElementById("productName");
+    const currentQuantitySpan = document.getElementById("currentQuantity");
+    const newQuantityInput = document.getElementById("newQuantityInput");
+    const updateQuantityButton = document.getElementById("updateQuantityButton");
+    const messageDisplay = document.getElementById("message-display");
+    const startScanButton = document.getElementById("startScanButton");
+
+    let currentProductBarcode = null; // Для хранения штрихкода текущего товара
+
+    function showMessage(msg, type = "info") {
+        messageDisplay.className = `message ${type}`;
+        messageDisplay.textContent = msg;
+        messageDisplay.style.display = "block";
+    }
+
+    function hideMessage() {
+        messageDisplay.style.display = "none";
+    }
+
+    function resetUI() {
+        productInfoDiv.style.display = "none";
+        hideMessage();
+        scannedBarcodeSpan.textContent = '';
+        productNameSpan.textContent = '';
+        currentQuantitySpan.textContent = '';
+        newQuantityInput.value = '';
+        currentProductBarcode = null;
+        document.querySelector("h2").textContent = i18n[lang].title;
+    }
+
+    async function startScanner() {
+        resetUI();
+        startScanButton.style.display = 'none';
+        readerDiv.style.display = 'block';
+        loadingDiv.textContent = i18n[lang].loading;
+        loadingDiv.style.display = "block";
+        document.querySelector("h2").textContent = i18n[lang].scanning;
+
+        try {
+            await html5QrCode.start(
+                { facingMode: "environment" },
+                config,
+                async (decodedText, decodedResult) => {
+                    loadingDiv.style.display = "none";
+                    log("Decoded barcode: " + decodedText, "info");
+                    html5QrCode.pause(); // Приостанавливаем сканер после первого успешного декодирования
+
+                    const barcode = validateBarcode(decodedText);
+                    if (barcode) {
+                        currentProductBarcode = barcode;
+                        scannedBarcodeSpan.textContent = barcode;
+                        await fetchProductData(barcode);
+                    } else {
+                        showMessage(i18n[lang].errorInvalidBarcode, "error");
+                        // Даем время прочитать сообщение, потом перезапускаем
+                        setTimeout(() => {
+                            html5QrCode.resume();
+                            hideMessage();
+                        }, 2000);
+                    }
+                },
+                (errorMessage) => {
+                    // Это коллбэк для ошибок сканирования (неудачное чтение)
+                    // log("Ошибка сканирования: " + errorMessage, "warn");
+                }
+            );
+            loadingDiv.style.display = "none";
+        } catch (err) {
+            loadingDiv.style.display = "none";
+            readerDiv.style.display = 'none';
+            startScanButton.style.display = 'block'; // Показываем кнопку "Начать сканирование"
+            const errorMsg = err.message.includes("Permission denied")
+                ? i18n[lang].permissionError
+                : i18n[lang].cameraError + err;
+            log("Camera start error: " + err, "error");
+            showMessage(errorMsg, "error");
+            document.querySelector("h2").textContent = i18n[lang].title;
+        }
+    }
+
+    async function fetchProductData(barcode) {
+        hideMessage();
+        showMessage(i18n[lang].loading, "info"); // Показываем "Загрузка..."
+        try {
+            const response = await fetch(`${API_BASE_URL}/scan-barcode`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ barcode: barcode }),
+            });
+
+            const data = await response.json();
+            hideMessage(); // Скрываем "Загрузка..."
+
+            if (data.success) {
+                productNameSpan.textContent = data.rowData.name || "Не указано"; // Предполагаем, что у вас есть колонка 'name'
+                currentQuantitySpan.textContent = data.rowData.quantity || "0";
+                newQuantityInput.value = data.rowData.quantity || "0";
+                productInfoDiv.style.display = 'block';
+                document.querySelector("h2").textContent = "Данные товара";
+            } else {
+                showMessage(data.message || i18n[lang].barcodeNotFound, "warning");
+                // Если штрихкод не найден, предлагаем отсканировать новый
+                setTimeout(() => {
+                    html5QrCode.resume(); // Продолжаем сканирование
+                    resetUI();
+                    startScanner(); // Перезапускаем UI для нового сканирования
+                }, 3000);
+            }
+        } catch (error) {
+            log('Ошибка при связи с сервером для поиска штрихкода:', error, "error");
+            showMessage(i18n[lang].serverError, "error");
+            setTimeout(() => {
+                html5QrCode.resume(); // Продолжаем сканирование
+                resetUI();
+                startScanner(); // Перезапускаем UI для нового сканирования
+            }, 3000);
+        }
+    }
+
+    updateQuantityButton.addEventListener('click', async () => {
+        const newQuantity = newQuantityInput.value;
+        if (!currentProductBarcode) {
+            showMessage("Штрихкод не отсканирован.", "warning");
+            return;
+        }
+        if (newQuantity === '' || isNaN(newQuantity) || parseInt(newQuantity) < 0) {
+            showMessage(i18n[lang].enterNewQuantity, "warning");
+            return;
+        }
+
+        hideMessage();
+        showMessage("Обновление количества...", "info");
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/update-quantity`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ barcode: currentProductBarcode, newQuantity: parseInt(newQuantity) }),
+            });
+
+            const data = await response.json();
+            hideMessage();
+
+            if (data.success) {
+                showMessage(i18n[lang].updateSuccess, "success");
+                // После успешного обновления, сброс и подготовка к новому сканированию
+                setTimeout(() => {
+                    html5QrCode.resume(); // Возобновляем сканирование
+                    resetUI();
+                    startScanner(); // Перезапускаем UI для нового сканирования
+                }, 2000);
+            } else {
+                showMessage(data.message || i18n[lang].updateError, "error");
+                // Если ошибка обновления, возможно, стоит снова дать возможность изменить количество или отсканировать новый
+                setTimeout(() => {
+                    hideMessage();
+                    // Можно тут возобновить сканирование или оставить на этой же странице
+                }, 3000);
+            }
+        } catch (error) {
+            log('Ошибка при связи с сервером для обновления количества:', error, "error");
+            showMessage(i18n[lang].serverError, "error");
+            setTimeout(() => {
+                hideMessage();
+            }, 3000);
+        }
+    });
+
+    startScanButton.addEventListener('click', startScanner);
+
+    // Инициализация при загрузке страницы
+    startScanner();
+
+  </script>
+</body>
+</html>
