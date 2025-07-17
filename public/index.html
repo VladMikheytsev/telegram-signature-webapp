@@ -25,6 +25,8 @@
       max-width: 400px;
       margin: auto;
       padding: 10px;
+      /* НОВОЕ: Устанавливаем минимальную высоту для гарантированного отображения камеры */
+      min-height: 250px; /* Достаточно для большинства QR/штрихкодов */
     }
     #loading {
       font-size: 16px;
@@ -279,7 +281,6 @@
         warehouseInput.value = '';
         currentBarcode = null;
         currentRowIndex = null;
-        // Перезапускаем сканер, чтобы он ждал следующего появления scanner-section
         if (html5QrCode && !html5QrCode.isScanning) {
             initScanner();
         } else if (!html5QrCode) {
@@ -497,35 +498,35 @@
         }
     });
 
-    // Обертываем всю инициализацию и привязку событий в DOMContentLoaded
     document.addEventListener('DOMContentLoaded', () => {
         log("DOMContentLoaded fired. Initializing scanner and resetting UI...", "info");
-        // Вызываем initScanner и resetUI сразу, как только DOM загружен
         initScanner(); 
         resetUI();
 
-        // Привязываем обработчик события 'click' к кнопке
         if (startInputButton) {
             log("startInputButton found. Attaching click listener...", "info");
             startInputButton.addEventListener('click', () => {
-                log("Button 'Внести данные' clicked!", "info"); // Это сообщение должно появиться при клике
+                log("Button 'Внести данные' clicked!", "info");
                 startInputButton.style.display = 'none';
-                scannerSection.style.display = 'block';
-                scannerTitle.textContent = i18n[lang].scanBarcode;
-                loadingDiv.textContent = i18n[lang].loadingCamera;
-                loadingDiv.style.display = "block";
-                mainTitle.textContent = i18n[lang].scanning;
-                
-                // Если сканер не запущен, запускаем его (или повторно инициализируем для отображения)
-                if (html5QrCode && !html5QrCode.isScanning) {
-                    log("Scanner not active, re-initializing it for display.", "info");
-                    initScanner();
-                } else if (!html5QrCode) {
-                    log("html5QrCode not initialized, doing initial setup.", "info");
-                    initScanner();
-                } else {
-                    log("Scanner already active, just showing section.", "info");
-                }
+
+                // Небольшая задержка перед показом секции сканера
+                setTimeout(() => {
+                    scannerSection.style.display = 'block';
+                    scannerTitle.textContent = i18n[lang].scanBarcode;
+                    loadingDiv.textContent = i18n[lang].loadingCamera;
+                    loadingDiv.style.display = "block";
+                    mainTitle.textContent = i18n[lang].scanning;
+                    
+                    if (html5QrCode && !html5QrCode.isScanning) {
+                        log("Scanner not active, re-initializing it for display.", "info");
+                        initScanner();
+                    } else if (!html5QrCode) {
+                        log("html5QrCode not initialized, doing initial setup.", "info");
+                        initScanner();
+                    } else {
+                        log("Scanner already active, just showing section.", "info");
+                    }
+                }, 100); // Задержка 100 мс
             });
         } else {
             log("ERROR: startInputButton not found in DOM!", "error");
