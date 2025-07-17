@@ -178,6 +178,7 @@
     log("Telegram WebApp initialized successfully", "info");
     tg.expand();
 
+    // ОБНОВЛЕННЫЙ ОБЪЕКТ i18n - ДОБАВЛЕНА СЕКЦИЯ 'en'
     const i18n = {
       ru: {
         title: "Система учета товаров",
@@ -201,6 +202,29 @@
         serverError: "Ошибка связи с сервером.",
         allDataSaved: "Все данные успешно внесены!",
         restarting: "Перезапуск для нового ввода..."
+      },
+      en: { // Добавлена английская локализация
+        title: "Item Accounting System",
+        inputData: "Enter Data",
+        scanBarcode: "Scan Barcode",
+        errorInvalidBarcode: "Error: Barcode must consist of 8 or 13 digits.",
+        cameraError: "Failed to start scanner: ",
+        permissionError: "Allow camera access in device settings.",
+        loadingCamera: "Starting camera...",
+        scanning: "Scanning...",
+        barcodeScanned: "Barcode scanned:",
+        enterName: "Enter Item Name:",
+        enterQuantity: "Enter Quantity:",
+        enterWarehouse: "Enter Warehouse Name:",
+        buttonOk: "OK",
+        successSaveBarcode: "Barcode saved successfully!",
+        successSaveName: "Item name saved successfully!",
+        successSaveQuantity: "Quantity saved successfully!",
+        successSaveWarehouse: "Warehouse saved successfully!",
+        errorSave: "Error saving data.",
+        serverError: "Server communication error.",
+        allDataSaved: "All data entered successfully!",
+        restarting: "Restarting for new entry..."
       }
     };
     const lang = tg.initDataUnsafe?.user?.language_code || "ru";
@@ -258,11 +282,9 @@
         warehouseInput.value = '';
         currentBarcode = null;
         currentRowIndex = null;
-        // Важно: не останавливаем камеру при resetUI, если хотим, чтобы она работала в фоне
-        // html5QrCode.stop().catch(err => log("Ошибка при остановке сканера при сбросе: " + err, "error"));
         // Перезапускаем сканер, чтобы он ждал следующего появления scanner-section
         if (html5QrCode && !html5QrCode.isScanning) {
-            startScanner(); // Запускаем заново
+            initScanner(); // Запускаем заново
         } else if (!html5QrCode) {
             initScanner(); // Если еще не инициализирован
         }
@@ -273,7 +295,7 @@
         if (!html5QrCode) {
             html5QrCode = new Html5Qrcode("reader");
         }
-        // Указываем поддерживаемые форматы, включая EAN_8 и EAN_13, QR_CODE, CODE_128
+        // Указываем поддерживаемые форматы
         const config = { fps: 10, qrbox: { width: 250, height: 250 }, formatsToSupport: [Html5QrcodeSupportedFormats.EAN_8, Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.QR_CODE] };
 
         try {
@@ -375,7 +397,7 @@
             showMessage(i18n[lang].serverError, "error");
             setTimeout(resetUI, 3000);
         }
-    }
+    });
 
     // --- Step 2: Input Name ---
     saveNameButton.addEventListener('click', async () => {
@@ -508,7 +530,6 @@
     });
 
     // Инициализируем сканер сразу при загрузке страницы, но скрываем его UI
-    // Он будет активен в фоне и готов к появлению.
     document.addEventListener('DOMContentLoaded', initScanner); 
     // Initial UI state (скрывает сканер и показывает кнопку "Внести данные")
     resetUI(); 
