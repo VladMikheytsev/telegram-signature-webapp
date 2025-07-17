@@ -1,25 +1,12 @@
 {
-  "name": "telegram-signature-webapp",
+  "name": "telegram-webapp-backend",
   "version": "1.0.0",
-  "description": "A web application to scan barcodes and update quantities in Google Sheets via a Node.js backend.",
-  "main": "server.js",
+  "description": "Backend for Telegram WebApp to Google Sheets",
+  "main": "index.js",
   "scripts": {
-    "start": "node server.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node index.js"
   },
-  "keywords": [
-    "barcode-scanner",
-    "google-sheets",
-    "node.js",
-    "express",
-    "telegram-webapp",
-    "inventory"
-  ],
-  "author": "Your Name (or leave as is)",
-  "license": "MIT",
   "dependencies": {
-    "cors": "^2.8.5",
-    "express": "^4.19.2",
-    "googleapis": "^137.0.0"
+    "google-spreadsheet": "^4.1.1" 
   }
 }
