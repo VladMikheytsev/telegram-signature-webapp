@@ -153,7 +153,6 @@
       }
     }
 
-    // Обновленная функция validateBarcode для EAN-8 и EAN-13
     function validateBarcode(barcode) {
       const regexEAN8 = /^\d{8}$/;
       const regexEAN13 = /^\d{13}$/;
@@ -178,7 +177,6 @@
     log("Telegram WebApp initialized successfully", "info");
     tg.expand();
 
-    // ОБНОВЛЕННЫЙ ОБЪЕКТ i18n - ДОБАВЛЕНА СЕКЦИЯ 'en'
     const i18n = {
       ru: {
         title: "Система учета товаров",
@@ -203,7 +201,7 @@
         allDataSaved: "Все данные успешно внесены!",
         restarting: "Перезапуск для нового ввода..."
       },
-      en: { // Добавлена английская локализация
+      en: { 
         title: "Item Accounting System",
         inputData: "Enter Data",
         scanBarcode: "Scan Barcode",
@@ -256,9 +254,8 @@
 
     let html5QrCode = null;
     let currentBarcode = null;
-    let currentRowIndex = null; // Индекс строки, куда будем записывать данные
+    let currentRowIndex = null;
 
-    // --- Helper Functions ---
     function showMessage(msg, type = "info") {
         messageDisplay.className = `message ${type}`;
         messageDisplay.textContent = msg;
@@ -284,18 +281,16 @@
         currentRowIndex = null;
         // Перезапускаем сканер, чтобы он ждал следующего появления scanner-section
         if (html5QrCode && !html5QrCode.isScanning) {
-            initScanner(); // Запускаем заново
+            initScanner();
         } else if (!html5QrCode) {
-            initScanner(); // Если еще не инициализирован
+            initScanner();
         }
     }
 
-    // --- Инициализация сканера (вызывается сразу при загрузке) ---
     async function initScanner() {
         if (!html5QrCode) {
             html5QrCode = new Html5Qrcode("reader");
         }
-        // Указываем поддерживаемые форматы
         const config = { fps: 10, qrbox: { width: 250, height: 250 }, formatsToSupport: [Html5QrcodeSupportedFormats.EAN_8, Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.QR_CODE] };
 
         try {
@@ -303,70 +298,47 @@
                 { facingMode: "environment" },
                 config,
                 async (decodedText, decodedResult) => {
-                    // Камера успешно считала штрихкод
                     loadingDiv.style.display = "none";
                     log("Decoded barcode: " + decodedText, "info");
                     
-                    // Останавливаем камеру только после успешного сканирования
                     html5QrCode.stop().catch(err => log("Ошибка при остановке сканера после сканирования: " + err, "error"));
-                    scannerSection.style.display = 'none'; // Скрываем секцию сканера
+                    scannerSection.style.display = 'none';
 
                     const barcode = validateBarcode(decodedText);
                     if (barcode) {
                         currentBarcode = barcode;
                         showMessage(`${i18n[lang].barcodeScanned} ${barcode}`, "success");
-                        await sendBarcodeToBackend(barcode); // Отправляем штрихкод на бэкенд
+                        await sendBarcodeToBackend(barcode);
                     } else {
                         showMessage(i18n[lang].errorInvalidBarcode, "error");
                         setTimeout(() => {
-                            resetUI(); // Сброс UI и ожидание нового нажатия "Внести данные"
+                            resetUI();
                         }, 2000);
                     }
                 },
                 (errorMessage) => {
-                    // Ошибки сканирования не критичны, если камера запущена (например, не найдено штрихкода)
-                    // log("Html5Qrcode scanning error: " + errorMessage, "warn"); // Можно закомментировать для продакшена
+                    // log("Html5Qrcode scanning error: " + errorMessage, "warn");
                 }
             );
-            loadingDiv.style.display = "none"; // Если камера успешно запустилась
+            loadingDiv.style.display = "none";
             log("Камера Html5Qrcode успешно запущена.", "info");
         } catch (err) {
             loadingDiv.style.display = "none";
-            // scannerSection.style.display = 'none'; // Не скрываем, чтобы пользователь видел ошибку
-            startInputButton.style.display = 'block'; // Позволяем начать заново
+            startInputButton.style.display = 'block';
             const errorMsg = err.message.includes("Permission denied")
                 ? i18n[lang].permissionError
                 : i18n[lang].cameraError + err;
             log("Camera start error: " + err, "error");
             showMessage(errorMsg, "error");
             mainTitle.textContent = i18n[lang].title;
-            // Сразу отображаем секцию сканера, чтобы пользователь увидел ошибку камеры
             scannerSection.style.display = 'block'; 
             scannerTitle.textContent = "Ошибка камеры!";
         }
     }
 
-    // --- Кнопка "Внести данные": Просто показывает секцию сканера ---
-    startInputButton.addEventListener('click', () => {
-        startInputButton.style.display = 'none';
-        scannerSection.style.display = 'block';
-        scannerTitle.textContent = i18n[lang].scanBarcode;
-        loadingDiv.textContent = i18n[lang].loadingCamera;
-        loadingDiv.style.display = "block";
-        mainTitle.textContent = i18n[lang].scanning;
-        
-        // Если сканер не запущен, запускаем его
-        if (html5QrCode && !html5QrCode.isScanning) {
-            initScanner();
-        } else if (!html5QrCode) { // Если html5QrCode еще не инициализирован вообще
-            initScanner();
-        }
-    });
-
-    // --- Send Barcode to Backend (and get row index) ---
     async function sendBarcodeToBackend(barcode) {
         hideMessage();
-        showMessage(i18n[lang].loadingCamera, "info"); // Индикация загрузки
+        showMessage(i18n[lang].loadingCamera, "info");
         try {
             const response = await fetch(`${API_BASE_URL}/add-barcode`, {
                 method: 'POST',
@@ -380,11 +352,11 @@
             hideMessage();
 
             if (data.success) {
-                currentRowIndex = data.rowIndex; // Сохраняем индекс строки для последующих обновлений
+                currentRowIndex = data.rowIndex;
                 showMessage(i18n[lang].successSaveBarcode, "success");
                 scannedBarcodeDisplay.textContent = barcode;
                 setTimeout(() => {
-                    nameInputSection.style.display = 'block'; // Показываем ввод наименования
+                    nameInputSection.style.display = 'block';
                     mainTitle.textContent = i18n[lang].enterName;
                     hideMessage();
                 }, 1000);
@@ -397,9 +369,8 @@
             showMessage(i18n[lang].serverError, "error");
             setTimeout(resetUI, 3000);
         }
-    });
+    }
 
-    // --- Step 2: Input Name ---
     saveNameButton.addEventListener('click', async () => {
         const productName = productNameInput.value.trim();
         if (!productName) {
@@ -425,9 +396,9 @@
             if (data.success) {
                 showMessage(i18n[lang].successSaveName, "success");
                 productNameDisplay.textContent = productName;
-                nameInputSection.style.display = 'none'; // Скрываем ввод наименования
+                nameInputSection.style.display = 'none';
                 setTimeout(() => {
-                    quantityInputSection.style.display = 'block'; // Показываем ввод количества
+                    quantityInputSection.style.display = 'block';
                     mainTitle.textContent = i18n[lang].enterQuantity;
                     hideMessage();
                 }, 1000);
@@ -442,7 +413,6 @@
         }
     });
 
-    // --- Step 3: Input Quantity ---
     saveQuantityButton.addEventListener('click', async () => {
         const quantity = quantityInput.value;
         if (quantity === '' || isNaN(quantity) || parseInt(quantity) < 0) {
@@ -468,9 +438,9 @@
             if (data.success) {
                 showMessage(i18n[lang].successSaveQuantity, "success");
                 quantityDisplay.textContent = quantity;
-                quantityInputSection.style.display = 'none'; // Скрываем ввод количества
+                quantityInputSection.style.display = 'none';
                 setTimeout(() => {
-                    warehouseInputSection.style.display = 'block'; // Показываем ввод склада
+                    warehouseInputSection.style.display = 'block';
                     mainTitle.textContent = i18n[lang].enterWarehouse;
                     hideMessage();
                 }, 1000);
@@ -485,7 +455,6 @@
         }
     });
 
-    // --- Step 4: Input Warehouse ---
     saveWarehouseButton.addEventListener('click', async () => {
         const warehouse = warehouseInput.value.trim();
         if (!warehouse) {
@@ -510,12 +479,11 @@
 
             if (data.success) {
                 showMessage(i18n[lang].successSaveWarehouse, "success");
-                warehouseInputSection.style.display = 'none'; // Скрываем ввод склада
+                warehouseInputSection.style.display = 'none';
                 mainTitle.textContent = i18n[lang].allDataSaved;
-                // Все данные внесены, сброс UI для нового цикла
                 setTimeout(() => {
                     showMessage(i18n[lang].restarting, "info");
-                    setTimeout(resetUI, 1500); // Полный сброс через некоторое время
+                    setTimeout(resetUI, 1500);
                 }, 1000);
 
             } else {
@@ -529,10 +497,40 @@
         }
     });
 
-    // Инициализируем сканер сразу при загрузке страницы, но скрываем его UI
-    document.addEventListener('DOMContentLoaded', initScanner); 
-    // Initial UI state (скрывает сканер и показывает кнопку "Внести данные")
-    resetUI(); 
+    // Обертываем всю инициализацию и привязку событий в DOMContentLoaded
+    document.addEventListener('DOMContentLoaded', () => {
+        log("DOMContentLoaded fired. Initializing scanner and resetting UI...", "info");
+        // Вызываем initScanner и resetUI сразу, как только DOM загружен
+        initScanner(); 
+        resetUI();
+
+        // Привязываем обработчик события 'click' к кнопке
+        if (startInputButton) {
+            log("startInputButton found. Attaching click listener...", "info");
+            startInputButton.addEventListener('click', () => {
+                log("Button 'Внести данные' clicked!", "info"); // Это сообщение должно появиться при клике
+                startInputButton.style.display = 'none';
+                scannerSection.style.display = 'block';
+                scannerTitle.textContent = i18n[lang].scanBarcode;
+                loadingDiv.textContent = i18n[lang].loadingCamera;
+                loadingDiv.style.display = "block";
+                mainTitle.textContent = i18n[lang].scanning;
+                
+                // Если сканер не запущен, запускаем его (или повторно инициализируем для отображения)
+                if (html5QrCode && !html5QrCode.isScanning) {
+                    log("Scanner not active, re-initializing it for display.", "info");
+                    initScanner();
+                } else if (!html5QrCode) {
+                    log("html5QrCode not initialized, doing initial setup.", "info");
+                    initScanner();
+                } else {
+                    log("Scanner already active, just showing section.", "info");
+                }
+            });
+        } else {
+            log("ERROR: startInputButton not found in DOM!", "error");
+        }
+    });
   </script>
 </body>
 </html>
