@@ -1,0 +1,53 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Diagnostic reports (https://nodejs.org/api/report.html)
+.report/
+
+# Node.js
+# `node_modules` are ignored by default by Git in most tools and editors.
+# However, if you explicitly add them, you may want to uncomment these lines.
+node_modules/
+dist/
+build/
+.cache/
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Directory for user-provided secrets
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.staging.local
+
+# Optional files
+.nyc_output/
+/coverage
+/.next/
+/.nuxt/
+/.vercel/
+.npm/
+.eslintcache
+.stylelintcache
+.vscode/
+npm-debug.log
+yarn-error.log
+test.log
+
+# Google Sheets service account key (important for security)
+# Make sure to set these as environment variables in Vercel
+# You will NOT commit your private key directly to Git
+private_key.json
+*.json # Only if you put your service account key directly in the project, which is not recommended
