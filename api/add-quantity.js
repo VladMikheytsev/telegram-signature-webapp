@@ -6,13 +6,22 @@ const CLIENT_EMAIL = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
 const PRIVATE_KEY = process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n');
 
 module.exports = async (req, res) => {
+    // Разрешаем CORS для всех запросов
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') {
+        return res.status(200).send();
+    }
+
     if (req.method !== 'POST') {
         return res.status(405).json({ success: false, message: 'Method Not Allowed' });
     }
 
     const { rowIndex, quantity } = req.body;
 
-    if (rowIndex === undefined || quantity === undefined || isNaN(quantity)) {
+    if (rowIndex === undefined || quantity === undefined || isNaN(quantity) || parseInt(quantity) < 0) {
         return res.status(400).json({ success: false, message: 'rowIndex and valid quantity are required' });
     }
 
