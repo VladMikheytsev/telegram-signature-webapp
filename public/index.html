@@ -136,14 +136,11 @@
     const API_BASE_URL = window.location.origin;
 
     function log(message, level = "info") {
-      // Улучшенная функция логгирования для большей устойчивости
-      // Убедимся, что level - это строка, прежде чем вызывать toUpperCase()
       const effectiveLevel = typeof level === 'string' ? level : 'info'; 
 
       if (console && typeof console[effectiveLevel] === 'function') {
         console[effectiveLevel](`[${new Date().toLocaleString()}] ${message}`);
       } else {
-        // Fallback to console.log if specific method is not available
         console.log(`[${new Date().toLocaleString()}] [${effectiveLevel.toUpperCase()}] ${message}`);
       }
     }
@@ -218,7 +215,6 @@
         successSaveBarcode: "Data successfully received!", 
         successSaveName: "Item name saved successfully!",
         successSaveQuantity: "Quantity saved successfully!",
-        successSaveWarehouse: "Warehouse saved successfully!",
         errorSave: "Error saving data.",
         serverError: "Server communication error.",
         allDataSaved: "All data entered successfully!",
@@ -227,7 +223,6 @@
     };
     const lang = tg.initDataUnsafe?.user?.language_code || "ru";
 
-    // Инициализируем ВСЕ элементы DOM здесь, чтобы они были доступны
     const mainTitle = document.querySelector("h2");
     const startInputButton = document.getElementById("startInputButton");
     const loadingDiv = document.getElementById("loading"); 
@@ -289,9 +284,23 @@
                 body: JSON.stringify({ barcode: scannedText })
             });
 
-            const data = await response.json();
-            hideMessage();
+            // --- НОВОЕ ЛОГГИРОВАНИЕ ОТВЕТА СЕРВЕРА ---
+            log(`Server response status: ${response.status}`, "info");
+            const responseText = await response.text(); // Читаем ответ как текст
+            log(`Server response raw text: ${responseText}`, "info");
 
+            let data;
+            try {
+                data = JSON.parse(responseText); // Пытаемся распарсить как JSON
+            } catch (e) {
+                log(`Failed to parse server response as JSON: ${e.message}`, "error");
+                // Показываем часть ответа, если он не JSON
+                showMessage(`Ошибка сервера: Некорректный ответ. ${responseText.substring(0, 100)}...`, "error");
+                setTimeout(resetUI, 3000);
+                return; // Прекращаем выполнение функции
+            }
+            // --- КОНЕЦ НОВОГО ЛОГГИРОВАНИЯ ---
+            
             if (data.success) {
                 currentRowIndex = data.rowIndex;
                 showMessage(`${i18n[lang].barcodeScanned} ${scannedText}`, "success"); 
@@ -330,7 +339,6 @@
                 },
                 body: JSON.stringify({ rowIndex: currentRowIndex, productName: productName })
             });
-
             const data = await response.json();
             hideMessage();
 
