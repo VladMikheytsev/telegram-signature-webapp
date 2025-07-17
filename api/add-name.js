@@ -1,4 +1,4 @@
-// api/add-name.js (МОДИФИЦИРОВАННАЯ ВЕРСИЯ)
+// api/add-name.js
 const { GoogleSpreadsheet } = require('google-spreadsheet');
 
 const SPREADSHEET_ID = process.env.GOOGLE_SPREADSHEET_ID;
@@ -25,19 +25,19 @@ module.exports = async (req, res) => {
         await doc.loadInfo();
         const sheet = doc.sheetsByIndex[0];
 
-        // Получаем все строки. Библиотека кэширует их.
+        // Получаем все строки из листа
         const rows = await sheet.getRows(); 
         
-        // rowIndex здесь - это 0-based индекс, который мы вернули из add-barcode
-        // и который соответствует массиву rows.
+        // Используем rowIndex, полученный от фронтенда
         const rowToUpdate = rows[rowIndex]; 
 
         if (!rowToUpdate) {
             return res.status(404).json({ success: false, message: 'Row not found for update' });
         }
 
-        rowToUpdate['Наименование товара'] = productName; // Используем заголовок столбца
-        await rowToUpdate.save(); // Сохраняем изменения в этой строке
+        // Обновляем значение. Заголовок столбца должен ТОЧНО совпадать с вашей таблицей.
+        rowToUpdate['Наименование товара'] = productName; 
+        await rowToUpdate.save(); // Сохраняем изменения
 
         return res.status(200).json({ success: true, message: 'Product name updated successfully' });
 
