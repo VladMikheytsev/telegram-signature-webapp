@@ -230,9 +230,8 @@
     const saveNameButton = document.getElementById("saveNameButton");
 
     const quantityInputSection = document.getElementById("quantity-input-section");
-    const productNameDisplay = document.getElementById("productNameDisplay");
-    const quantityInput = document.getElementById("quantityInput");
-    const saveQuantityButton = document = document.getElementById("saveQuantityButton");
+    // ИСПРАВЛЕНА ОПЕЧАТКА ЗДЕСЬ:
+    const saveQuantityButton = document.getElementById("saveQuantityButton");
 
     const warehouseInputSection = document.getElementById("warehouse-input-section");
     const quantityDisplay = document.getElementById("quantityDisplay");
@@ -452,12 +451,11 @@
             log("ERROR: startInputButton not found in DOM!", "error");
         }
 
-        // --- THE KEY CHANGE IS HERE ---
-        tg.onEvent('qrTextReceived', (eventData) => { // Renamed 'data' to 'eventData' for clarity
-            log(`QR Code received from Telegram: ${eventData.data}`, "info"); // Access eventData.data
+        tg.onEvent('qrTextReceived', (eventData) => { 
+            log(`QR Code received from Telegram: ${eventData.data}`, "info"); 
             tg.closeScanQrPopup(); 
             
-            const scannedContent = processScannedText(eventData.data); // Pass eventData.data to processScannedText
+            const scannedContent = processScannedText(eventData.data); 
             if (scannedContent !== null) { 
                 currentBarcode = scannedContent; 
                 showMessage(`${i18n[lang].barcodeScanned} ${scannedContent}`, "success");
@@ -470,7 +468,6 @@
                 }, 2000);
             }
         });
-        // --- END OF KEY CHANGE ---
 
         tg.onEvent('scanQrPopupClosed', () => {
             log("Telegram QR scan popup closed.", "info");
