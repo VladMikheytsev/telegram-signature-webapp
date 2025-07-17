@@ -1,12 +1,24 @@
 {
-  "name": "telegram-webapp-backend",
+  "name": "telegram-signature-webapp",
   "version": "1.0.0",
-  "description": "Backend for Telegram WebApp to Google Sheets",
-  "main": "index.js",
+  "private": true,
+  "description": "Telegram Web App for barcode and item accounting, integrated with Google Sheets.",
+  "main": "api/add-barcode.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "vercel dev",
+    "deploy": "vercel --prod"
   },
+  "keywords": [
+    "telegram",
+    "webapp",
+    "google-sheets",
+    "barcode",
+    "accounting",
+    "vercel"
+  ],
+  "author": "VladMikheytsev",
+  "license": "MIT",
   "dependencies": {
-    "google-spreadsheet": "^4.1.1" 
+    "google-spreadsheet": "^4.1.1"
   }
 }
