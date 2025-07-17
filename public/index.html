@@ -141,13 +141,12 @@
       }
     }
 
-    // Эта функция теперь просто проверяет, что текст не пуст или не состоит только из пробелов
     function processScannedText(scannedText) {
       if (!scannedText || scannedText.trim() === "") {
         log("Scanned text is empty or only whitespace.", "warn");
         return null; 
       }
-      return scannedText.trim(); // Удаляем пробелы по краям
+      return scannedText.trim(); 
     }
 
     const tg = window.Telegram?.WebApp;
@@ -176,7 +175,6 @@
         title: "Система учета товаров",
         inputData: "Внести данные",
         scanBarcode: "Сканируйте штрихкод", 
-        // Обновленное сообщение об ошибке для более ясного понимания
         errorInvalidBarcode: "Ошибка: Отсканированный QR-код пуст или содержит недействительные данные.", 
         cameraError: "Не удалось запустить сканер: ", 
         permissionError: "Разрешите доступ к камере в настройках устройства.", 
@@ -200,7 +198,7 @@
         title: "Item Accounting System",
         inputData: "Enter Data",
         scanBarcode: "Scan Barcode",
-        errorInvalidBarcode: "Error: Scanned QR code is empty or contains invalid data.", // Updated
+        errorInvalidBarcode: "Error: Scanned QR code is empty or contains invalid data.", 
         cameraError: "Failed to start scanner: ",
         permissionError: "Allow camera access in device settings.",
         loadingCamera: "Starting camera...",
@@ -234,7 +232,7 @@
     const quantityInputSection = document.getElementById("quantity-input-section");
     const productNameDisplay = document.getElementById("productNameDisplay");
     const quantityInput = document.getElementById("quantityInput");
-    const saveQuantityButton = document.getElementById("saveQuantityButton");
+    const saveQuantityButton = document = document.getElementById("saveQuantityButton");
 
     const warehouseInputSection = document.getElementById("warehouse-input-section");
     const quantityDisplay = document.getElementById("quantityDisplay");
@@ -304,7 +302,7 @@
             showMessage(i18n[lang].serverError, "error");
             setTimeout(resetUI, 3000);
         }
-    }
+    });
 
     saveNameButton.addEventListener('click', async () => {
         const productName = productNameInput.value.trim();
@@ -454,17 +452,17 @@
             log("ERROR: startInputButton not found in DOM!", "error");
         }
 
-        tg.onEvent('qrTextReceived', (data) => {
-            log(`QR Code received from Telegram: ${data.text}`, "info");
+        // --- THE KEY CHANGE IS HERE ---
+        tg.onEvent('qrTextReceived', (eventData) => { // Renamed 'data' to 'eventData' for clarity
+            log(`QR Code received from Telegram: ${eventData.data}`, "info"); // Access eventData.data
             tg.closeScanQrPopup(); 
             
-            const scannedContent = processScannedText(data.text); 
+            const scannedContent = processScannedText(eventData.data); // Pass eventData.data to processScannedText
             if (scannedContent !== null) { 
                 currentBarcode = scannedContent; 
                 showMessage(`${i18n[lang].barcodeScanned} ${scannedContent}`, "success");
                 sendBarcodeToBackend(scannedContent); 
             } else {
-                // Изменено: более конкретное сообщение об ошибке
                 showMessage(i18n[lang].errorInvalidBarcode, "error"); 
                 setTimeout(() => {
                     resetUI(); 
@@ -472,10 +470,10 @@
                 }, 2000);
             }
         });
+        // --- END OF KEY CHANGE ---
 
         tg.onEvent('scanQrPopupClosed', () => {
             log("Telegram QR scan popup closed.", "info");
-            // Проверяем, что не перешли к следующим шагам ввода, прежде чем сбрасывать UI
             if (!currentBarcode && nameInputSection.style.display === 'none' && quantityInputSection.style.display === 'none' && warehouseInputSection.style.display === 'none') {
                  resetUI();
             }
