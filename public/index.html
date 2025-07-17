@@ -6,7 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="telegram:webapp" content="true">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script> <style>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <style>
     body {
       margin: 0;
       padding: 0;
@@ -19,7 +20,7 @@
       margin-top: 20px;
       font-size: 24px;
     }
-    #reader { /* Секция для отображения камеры */
+    #reader {
       width: 100%;
       max-width: 400px;
       margin: auto;
@@ -257,27 +258,22 @@
         warehouseInput.value = '';
         currentBarcode = null;
         currentRowIndex = null;
-        if (html5QrCode && html5QrCode.isScanning) {
-            html5QrCode.stop().catch(err => log("Ошибка при остановке сканера при сбросе: " + err, "error"));
+        // Важно: не останавливаем камеру при resetUI, если хотим, чтобы она работала в фоне
+        // html5QrCode.stop().catch(err => log("Ошибка при остановке сканера при сбросе: " + err, "error"));
+        // Перезапускаем сканер, чтобы он ждал следующего появления scanner-section
+        if (html5QrCode && !html5QrCode.isScanning) {
+            startScanner(); // Запускаем заново
+        } else if (!html5QrCode) {
+            initScanner(); // Если еще не инициализирован
         }
     }
 
-    // --- Step 1: Start Scanning ---
-    startInputButton.addEventListener('click', () => {
-        startInputButton.style.display = 'none';
-        scannerSection.style.display = 'block';
-        scannerTitle.textContent = i18n[lang].scanBarcode;
-        loadingDiv.textContent = i18n[lang].loadingCamera;
-        loadingDiv.style.display = "block";
-        mainTitle.textContent = i18n[lang].scanning;
-        startScanner();
-    });
-
-    async function startScanner() {
+    // --- Инициализация сканера (вызывается сразу при загрузке) ---
+    async function initScanner() {
         if (!html5QrCode) {
             html5QrCode = new Html5Qrcode("reader");
         }
-        // Указываем поддерживаемые форматы, включая EAN_8 и EAN_13
+        // Указываем поддерживаемые форматы, включая EAN_8 и EAN_13, QR_CODE, CODE_128
         const config = { fps: 10, qrbox: { width: 250, height: 250 }, formatsToSupport: [Html5QrcodeSupportedFormats.EAN_8, Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.QR_CODE] };
 
         try {
@@ -285,9 +281,12 @@
                 { facingMode: "environment" },
                 config,
                 async (decodedText, decodedResult) => {
+                    // Камера успешно считала штрихкод
                     loadingDiv.style.display = "none";
                     log("Decoded barcode: " + decodedText, "info");
-                    html5QrCode.stop().catch(err => log("Ошибка при остановке сканера после сканирования: " + err, "error")); // Останавливаем камеру
+                    
+                    // Останавливаем камеру только после успешного сканирования
+                    html5QrCode.stop().catch(err => log("Ошибка при остановке сканера после сканирования: " + err, "error"));
                     scannerSection.style.display = 'none'; // Скрываем секцию сканера
 
                     const barcode = validateBarcode(decodedText);
@@ -303,28 +302,49 @@
                     }
                 },
                 (errorMessage) => {
-                    // Ошибки сканирования не критичны, если камера запущена
-                    // log("Html5Qrcode scanning error: " + errorMessage, "warn");
+                    // Ошибки сканирования не критичны, если камера запущена (например, не найдено штрихкода)
+                    // log("Html5Qrcode scanning error: " + errorMessage, "warn"); // Можно закомментировать для продакшена
                 }
             );
             loadingDiv.style.display = "none"; // Если камера успешно запустилась
+            log("Камера Html5Qrcode успешно запущена.", "info");
         } catch (err) {
             loadingDiv.style.display = "none";
-            scannerSection.style.display = 'none';
-            startInputButton.style.display = 'block';
+            // scannerSection.style.display = 'none'; // Не скрываем, чтобы пользователь видел ошибку
+            startInputButton.style.display = 'block'; // Позволяем начать заново
             const errorMsg = err.message.includes("Permission denied")
                 ? i18n[lang].permissionError
                 : i18n[lang].cameraError + err;
             log("Camera start error: " + err, "error");
             showMessage(errorMsg, "error");
             mainTitle.textContent = i18n[lang].title;
+            // Сразу отображаем секцию сканера, чтобы пользователь увидел ошибку камеры
+            scannerSection.style.display = 'block'; 
+            scannerTitle.textContent = "Ошибка камеры!";
         }
     }
+
+    // --- Кнопка "Внести данные": Просто показывает секцию сканера ---
+    startInputButton.addEventListener('click', () => {
+        startInputButton.style.display = 'none';
+        scannerSection.style.display = 'block';
+        scannerTitle.textContent = i18n[lang].scanBarcode;
+        loadingDiv.textContent = i18n[lang].loadingCamera;
+        loadingDiv.style.display = "block";
+        mainTitle.textContent = i18n[lang].scanning;
+        
+        // Если сканер не запущен, запускаем его
+        if (html5QrCode && !html5QrCode.isScanning) {
+            initScanner();
+        } else if (!html5QrCode) { // Если html5QrCode еще не инициализирован вообще
+            initScanner();
+        }
+    });
 
     // --- Send Barcode to Backend (and get row index) ---
     async function sendBarcodeToBackend(barcode) {
         hideMessage();
-        showMessage(i18n[lang].loadingCamera, "info"); // Переиспользуем "loadingCamera" для индикации загрузки
+        showMessage(i18n[lang].loadingCamera, "info"); // Индикация загрузки
         try {
             const response = await fetch(`${API_BASE_URL}/add-barcode`, {
                 method: 'POST',
@@ -487,8 +507,11 @@
         }
     });
 
-    // Initial UI state
-    resetUI();
+    // Инициализируем сканер сразу при загрузке страницы, но скрываем его UI
+    // Он будет активен в фоне и готов к появлению.
+    document.addEventListener('DOMContentLoaded', initScanner); 
+    // Initial UI state (скрывает сканер и показывает кнопку "Внести данные")
+    resetUI(); 
   </script>
 </body>
 </html>
