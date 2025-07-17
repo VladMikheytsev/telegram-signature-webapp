@@ -32,7 +32,7 @@ module.exports = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Row not found for update' });
         }
 
-        rowToUpdate['Количество'] = quantity; // Используем заголовок столбца
+        rowToUpdate['Количество'] = quantity; // Заголовок столбца
         await rowToUpdate.save();
 
         return res.status(200).json({ success: true, message: 'Quantity updated successfully' });
