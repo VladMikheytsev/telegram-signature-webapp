@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="telegram:webapp" content="true">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <style>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script> <style>
     body {
       margin: 0;
       padding: 0;
@@ -19,9 +19,17 @@
       margin-top: 20px;
       font-size: 24px;
     }
-    /* #reader больше не нужен, так как используется нативный сканер Telegram */
-    /* #loading также не нужен, так как Telegram управляет UI сканера */
-
+    #reader { /* Секция для отображения камеры */
+      width: 100%;
+      max-width: 400px;
+      margin: auto;
+      padding: 10px;
+    }
+    #loading {
+      font-size: 16px;
+      color: #333;
+      margin: 20px;
+    }
     .error {
       color: red;
       margin: 10px;
@@ -106,6 +114,12 @@
       <button id="startInputButton">Внести данные</button>
   </div>
 
+  <div id="scanner-section" style="display: none;">
+      <h2 id="scanner-title">Сканируйте штрихкод</h2>
+      <div id="reader" role="region" aria-label="Область сканирования штрихкода"></div>
+      <div id="loading">Идёт запуск камеры...</div>
+  </div>
+
   <div id="name-input-section" class="step-section" style="display: none;">
     <p><strong>Отсканированный штрихкод:</strong> <span id="scannedBarcodeDisplay"></span></p>
     <label for="productNameInput">Наименование товара:</label>
@@ -138,11 +152,11 @@
       }
     }
 
+    // Обновленная функция validateBarcode для EAN-8 и EAN-13
     function validateBarcode(barcode) {
-          // Проверяем на EAN-8 (8 цифр) или EAN-13 (13 цифр)
       const regexEAN8 = /^\d{8}$/;
       const regexEAN13 = /^\d{13}$/;
-              
+
       if (regexEAN8.test(barcode) || regexEAN13.test(barcode)) {
         return barcode;
       }
@@ -168,11 +182,11 @@
         title: "Система учета товаров",
         inputData: "Внести данные",
         scanBarcode: "Сканируйте штрихкод",
-        errorInvalidBarcode: "Ошибка: штрихкод должен состоять из 8 цифр.",
-        cameraError: "Не удалось запустить сканер: ", // Эта ошибка менее вероятна с нативным сканером
-        permissionError: "Разрешите доступ к камере в настройках устройства.", // Также менее вероятно
-        loadingCamera: "Ожидание сканирования Telegram...", // Изменено
-        scanning: "Ожидание сканирования...", // Изменено
+        errorInvalidBarcode: "Ошибка: штрихкод должен состоять из 8 или 13 цифр.",
+        cameraError: "Не удалось запустить сканер: ",
+        permissionError: "Разрешите доступ к камере в настройках устройства.",
+        loadingCamera: "Идёт запуск камеры...",
+        scanning: "Сканирование...",
         barcodeScanned: "Штрихкод отсканирован:",
         enterName: "Введите наименование:",
         enterQuantity: "Введите количество:",
@@ -193,10 +207,10 @@
     // UI Elements
     const mainTitle = document.querySelector("h2");
     const startInputButton = document.getElementById("startInputButton");
-    // const scannerSection = document.getElementById("scanner-section"); // Больше не нужен
-    // const scannerTitle = document.getElementById("scanner-title"); // Больше не нужен
-    // const readerDiv = document.getElementById("reader"); // Больше не нужен
-    // const loadingDiv = document.getElementById("loading"); // Больше не нужен
+    const scannerSection = document.getElementById("scanner-section");
+    const scannerTitle = document.getElementById("scanner-title");
+    const readerDiv = document.getElementById("reader");
+    const loadingDiv = document.getElementById("loading");
 
     const nameInputSection = document.getElementById("name-input-section");
     const scannedBarcodeDisplay = document.getElementById("scannedBarcodeDisplay");
@@ -215,6 +229,7 @@
 
     const messageDisplay = document.getElementById("message-display");
 
+    let html5QrCode = null;
     let currentBarcode = null;
     let currentRowIndex = null; // Индекс строки, куда будем записывать данные
 
@@ -232,7 +247,7 @@
     function resetUI() {
         mainTitle.textContent = i18n[lang].title;
         startInputButton.style.display = 'block';
-        // scannerSection.style.display = 'none'; // Больше не нужен
+        scannerSection.style.display = 'none';
         nameInputSection.style.display = 'none';
         quantityInputSection.style.display = 'none';
         warehouseInputSection.style.display = 'none';
@@ -242,53 +257,74 @@
         warehouseInput.value = '';
         currentBarcode = null;
         currentRowIndex = null;
+        if (html5QrCode && html5QrCode.isScanning) {
+            html5QrCode.stop().catch(err => log("Ошибка при остановке сканера при сбросе: " + err, "error"));
+        }
     }
 
-    // --- Step 1: Start Scanning using Telegram's QR/Barcode scanner ---
+    // --- Step 1: Start Scanning ---
     startInputButton.addEventListener('click', () => {
         startInputButton.style.display = 'none';
+        scannerSection.style.display = 'block';
+        scannerTitle.textContent = i18n[lang].scanBarcode;
+        loadingDiv.textContent = i18n[lang].loadingCamera;
+        loadingDiv.style.display = "block";
         mainTitle.textContent = i18n[lang].scanning;
-        showMessage(i18n[lang].loadingCamera, "info"); // Показываем, что ждем сканера Telegram
-
-        // Показываем нативный сканер QR/штрихкодов Telegram
-        tg.showScanQrPopup({ text: "Отсканируйте штрихкод товара." });
+        startScanner();
     });
 
-    // Обработчик события, когда Telegram возвращает результат сканирования
-    tg.onEvent('qrTextReceived', async (data) => {
-        const decodedText = data.text;
-        log("Decoded barcode from Telegram: " + decodedText, "info");
-
-        // Закрываем сканер Telegram после получения результата
-        tg.closeScanQrPopup();
-
-        const barcode = validateBarcode(decodedText);
-        if (barcode) {
-            currentBarcode = barcode;
-            showMessage(`${i18n[lang].barcodeScanned} ${barcode}`, "success");
-            await sendBarcodeToBackend(barcode); // Отправляем штрихкод на бэкенд
-        } else {
-            showMessage(i18n[lang].errorInvalidBarcode, "error");
-            // Даем время прочитать сообщение, потом сброс
-            setTimeout(() => {
-                resetUI(); // Сброс UI и ожидание нового нажатия "Внести данные"
-            }, 2000);
+    async function startScanner() {
+        if (!html5QrCode) {
+            html5QrCode = new Html5Qrcode("reader");
         }
-    });
+        // Указываем поддерживаемые форматы, включая EAN_8 и EAN_13
+        const config = { fps: 10, qrbox: { width: 250, height: 250 }, formatsToSupport: [Html5QrcodeSupportedFormats.EAN_8, Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.QR_CODE] };
 
-    // Обработчик, если пользователь отменил сканирование
-    tg.onEvent('scanQrPopupClosed', () => {
-        log("Telegram QR Scan Popup closed by user.", "info");
-        // Если пользователь закрыл сканер, возвращаемся в начальное состояние
-        showMessage("Сканирование отменено.", "info");
-        setTimeout(resetUI, 1500);
-    });
+        try {
+            await html5QrCode.start(
+                { facingMode: "environment" },
+                config,
+                async (decodedText, decodedResult) => {
+                    loadingDiv.style.display = "none";
+                    log("Decoded barcode: " + decodedText, "info");
+                    html5QrCode.stop().catch(err => log("Ошибка при остановке сканера после сканирования: " + err, "error")); // Останавливаем камеру
+                    scannerSection.style.display = 'none'; // Скрываем секцию сканера
 
+                    const barcode = validateBarcode(decodedText);
+                    if (barcode) {
+                        currentBarcode = barcode;
+                        showMessage(`${i18n[lang].barcodeScanned} ${barcode}`, "success");
+                        await sendBarcodeToBackend(barcode); // Отправляем штрихкод на бэкенд
+                    } else {
+                        showMessage(i18n[lang].errorInvalidBarcode, "error");
+                        setTimeout(() => {
+                            resetUI(); // Сброс UI и ожидание нового нажатия "Внести данные"
+                        }, 2000);
+                    }
+                },
+                (errorMessage) => {
+                    // Ошибки сканирования не критичны, если камера запущена
+                    // log("Html5Qrcode scanning error: " + errorMessage, "warn");
+                }
+            );
+            loadingDiv.style.display = "none"; // Если камера успешно запустилась
+        } catch (err) {
+            loadingDiv.style.display = "none";
+            scannerSection.style.display = 'none';
+            startInputButton.style.display = 'block';
+            const errorMsg = err.message.includes("Permission denied")
+                ? i18n[lang].permissionError
+                : i18n[lang].cameraError + err;
+            log("Camera start error: " + err, "error");
+            showMessage(errorMsg, "error");
+            mainTitle.textContent = i18n[lang].title;
+        }
+    }
 
     // --- Send Barcode to Backend (and get row index) ---
     async function sendBarcodeToBackend(barcode) {
         hideMessage();
-        showMessage(i18n[lang].loadingCamera, "info"); // Индикация загрузки
+        showMessage(i18n[lang].loadingCamera, "info"); // Переиспользуем "loadingCamera" для индикации загрузки
         try {
             const response = await fetch(`${API_BASE_URL}/add-barcode`, {
                 method: 'POST',
