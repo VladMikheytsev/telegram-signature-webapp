@@ -140,14 +140,14 @@
 
     function validateBarcode(barcode) {
           // Проверяем на EAN-8 (8 цифр) или EAN-13 (13 цифр)
-          const regexEAN8 = /^\d{8}$/;
-          const regexEAN13 = /^\d{13}$/;
-    
-          if (regexEAN8.test(barcode) || regexEAN13.test(barcode)) {
-            return barcode;
-          }
-          return null;
-        }
+      const regexEAN8 = /^\d{8}$/;
+      const regexEAN13 = /^\d{13}$/;
+              
+      if (regexEAN8.test(barcode) || regexEAN13.test(barcode)) {
+        return barcode;
+      }
+      return null;
+    }
 
     const tg = window.Telegram?.WebApp;
     if (!tg) {
