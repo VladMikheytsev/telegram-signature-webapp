@@ -1,10 +1,10 @@
 const express = require('express');
 const { google } = require('googleapis');
 const path = require('path');
-const cors = require('cors'); // Добавляем cors
+const cors = require('cors');
 
 const app = express();
-const PORT = process.env.PORT || 3000; // Можно использовать другой порт, например 8080
+const PORT = process.env.PORT || 3000;
 
 // Настройка CORS для разрешения запросов с вашего фронтенда
 app.use(cors({
@@ -13,11 +13,11 @@ app.use(cors({
     allowedHeaders: ['Content-Type'],
 }));
 
-app.use(express.json()); // Для парсинга JSON-запросов
-// Обслуживание статических файлов из папки 'public' (где будет index.html и app.js)
-app.use(express.static(path.join(__dirname, 'public'))); 
+app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
 
-// Ваши учетные данные сервисного аккаунта
+// Ваши жестко закодированные учетные данные сервисного аккаунта
+// ВНИМАНИЕ: Для продакшн-окружений крайне рекомендуется использовать переменные окружения
 const credentials = {
   "type": "service_account",
   "project_id": "esp-abg",
@@ -32,6 +32,7 @@ const credentials = {
   "universe_domain": "googleapis.com"
 };
 
+
 const auth = new google.auth.JWT(
     credentials.client_email,
     null,
@@ -41,9 +42,9 @@ const auth = new google.auth.JWT(
 
 const sheets = google.sheets({ version: 'v4', auth });
 
-// *** ЗАМЕНИТЕ НА СВОИ ЗНАЧЕНИЯ ***
-const SPREADSHEET_ID = '1QxI6b0WqT9Q3o-9i6U_4gP2r9W2W2A2m2B2c2D2e2f2g'; // Замените на ID вашей таблицы Google Sheets
-const SHEET_NAME = 'Sheet1'; // Замените на имя листа, например, "Товары"
+// Ваши значения для Google Sheets
+const SPREADSHEET_ID = '1adYfca02RkKobevGPRApYBHmq3ScqY37nJ0LccrCx5g'; 
+const SHEET_NAME = 'Склад1'; 
 
 // Индексы столбцов в вашей таблице Google Sheets (начинаются с 0)
 // Пример: A=0, B=1, C=2
@@ -61,8 +62,7 @@ app.post('/scan-barcode', async (req, res) => {
     try {
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
-            // Читаем данные до последнего столбца, который содержит нужную информацию (например, C)
-            range: `${SHEET_NAME}!A:Z`, 
+            range: `${SHEET_NAME}!A:Z`,
         });
 
         const rows = response.data.values;
@@ -71,19 +71,17 @@ app.post('/scan-barcode', async (req, res) => {
         }
 
         let foundRow = null;
-        let rowIndexInSheet = -1; // Номер строки в Google Sheets (начинается с 1)
+        let rowIndexInSheet = -1;
 
         for (let i = 0; i < rows.length; i++) {
-            // Проверяем, существует ли ячейка с штрихкодом
             if (rows[i][BARCODE_COLUMN_INDEX] === barcode) {
                 foundRow = rows[i];
-                rowIndexInSheet = i + 1; // Номер строки в Google Sheets
+                rowIndexInSheet = i + 1;
                 break;
             }
         }
 
         if (foundRow) {
-            // Извлекаем количество и наименование, если они существуют
             const quantity = foundRow[QUANTITY_COLUMN_INDEX] !== undefined ? parseInt(foundRow[QUANTITY_COLUMN_INDEX]) : 0;
             const productName = foundRow[PRODUCT_NAME_COLUMN_INDEX] || 'Не указано';
 
@@ -92,17 +90,17 @@ app.post('/scan-barcode', async (req, res) => {
                 message: 'Штрихкод найден!',
                 rowData: {
                     barcode: foundRow[BARCODE_COLUMN_INDEX],
-                    quantity: isNaN(quantity) ? 0 : quantity, // Убедимся, что это число
+                    quantity: isNaN(quantity) ? 0 : quantity,
                     name: productName,
                 },
-                rowIndex: rowIndexInSheet // Передаем индекс строки для последующего обновления
+                rowIndex: rowIndexInSheet
             });
         } else {
             res.json({ success: false, message: 'Штрихкод не найден в таблице.' });
         }
 
     } catch (error) {
-        console.error('Ошибка при поиске штрихкода в Google Sheets:', error);
+        console.error('Ошибка при поиске штрихкода в Google Sheets:', error.message, error.stack);
         res.status(500).json({ success: false, message: 'Ошибка сервера при поиске.' });
     }
 });
@@ -115,7 +113,6 @@ app.post('/update-quantity', async (req, res) => {
     }
 
     try {
-        // Сначала найдем строку по штрихкоду
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
             range: `${SHEET_NAME}!A:Z`,
@@ -126,27 +123,26 @@ app.post('/update-quantity', async (req, res) => {
             return res.json({ success: false, message: 'Данные не найдены в таблице.' });
         }
 
-        let targetRowIndexInSheet = -1; // Номер строки в Google Sheets (начинается с 1)
+        let targetRowIndexInSheet = -1;
         for (let i = 0; i < rows.length; i++) {
             if (rows[i][BARCODE_COLUMN_INDEX] === barcode) {
-                targetRowIndexInSheet = i + 1; // Индекс строки в Google Sheets
+                targetRowIndexInSheet = i + 1;
                 break;
             }
         }
 
         if (targetRowIndexInSheet !== -1) {
-            // Обновляем значение в ячейке, соответствующей колонке QUANTITY_COLUMN_INDEX
-            const columnLetter = String.fromCharCode(65 + QUANTITY_COLUMN_INDEX); // Преобразовать индекс столбца в букву (0->A, 1->B, ...)
-            const updateRange = `${SHEET_NAME}!${columnLetter}${targetRowIndexInSheet}`; // Например, "Sheet1!B2"
+            const columnLetter = String.fromCharCode(65 + QUANTITY_COLUMN_INDEX);
+            const updateRange = `${SHEET_NAME}!${columnLetter}${targetRowIndexInSheet}`;
 
-            const valueInputOption = 'RAW'; // 'RAW' - вставляет значение как есть, 'USER_ENTERED' - применяет форматирование Google Sheets
+            const valueInputOption = 'RAW';
 
             await sheets.spreadsheets.values.update({
                 spreadsheetId: SPREADSHEET_ID,
                 range: updateRange,
                 valueInputOption: valueInputOption,
                 resource: {
-                    values: [[newQuantity]], // Обновляем только одно значение
+                    values: [[newQuantity]],
                 },
             });
 
@@ -156,11 +152,10 @@ app.post('/update-quantity', async (req, res) => {
         }
 
     } catch (error) {
-        console.error('Ошибка при обновлении количества в Google Sheets:', error);
+        console.error('Ошибка при обновлении количества в Google Sheets:', error.message, error.stack);
         res.status(500).json({ success: false, message: 'Ошибка сервера при обновлении количества.' });
     }
 });
-
 
 app.listen(PORT, () => {
     console.log(`Сервер запущен на http://localhost:${PORT}`);
